@@ -364,19 +364,53 @@ export const Dashboard = ({ user }: DashboardProps) => {
                                 return (
                                   <td key={column} className="border-r border-border/20 p-4 text-sm">
                                     {isEditing && isEditable ? (
-                                      <Input
-                                        value={cellValue}
-                                        onChange={(e) => handleCellChange(rowIndex, column, e.target.value)}
-                                        className="w-full min-w-[120px]"
-                                        placeholder={`Enter ${column}`}
-                                      />
+                                      <div className="w-full min-w-[120px]">
+                                        {column === 'Status' ? (
+                                          <Select
+                                            value={cellValue}
+                                            onValueChange={(value) => handleCellChange(rowIndex, column, value)}
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="Closed - Won">Closed - Won</SelectItem>
+                                              <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        ) : column === 'Last Price' ? (
+                                          <Input
+                                            type="number"
+                                            value={cellValue.toString().replace(/[$,]/g, '')}
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                              handleCellChange(rowIndex, column, formattedValue);
+                                            }}
+                                            className="w-full"
+                                            placeholder="Enter amount"
+                                            step="0.01"
+                                            min="0"
+                                          />
+                                        ) : (
+                                          <Input
+                                            value={cellValue}
+                                            onChange={(e) => handleCellChange(rowIndex, column, e.target.value)}
+                                            className="w-full"
+                                            placeholder={`Enter ${column}`}
+                                          />
+                                        )}
+                                      </div>
                                     ) : (
                                       <span className={cn(
                                         isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
                                         column === 'Status' && cellValue && getStatusColor(cellValue),
                                         "block min-h-[32px] flex items-center"
                                       )}>
-                                        {cellValue}
+                                        {column === 'Last Price' && cellValue ? 
+                                          (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
+                                          : cellValue
+                                        }
                                       </span>
                                     )}
                                   </td>
