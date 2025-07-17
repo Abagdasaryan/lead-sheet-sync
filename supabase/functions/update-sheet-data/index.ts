@@ -167,7 +167,7 @@ async function generateJWT(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     iss: serviceAccount.client_email,
-    scope: "https://www.googleapis.com/spreadsheets",
+    scope: "https://www.googleapis.com/spreadsheets https://www.googleapis.com/drive.file",
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now
