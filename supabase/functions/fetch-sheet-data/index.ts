@@ -78,15 +78,9 @@ serve(async (req) => {
 
     console.log('RepEmail column found at index:', repEmailIndex);
 
-    // Find date column index (look for common date column names)
-    const dateColumnIndex = headers.findIndex(header => 
-      header.toLowerCase().includes('date') || 
-      header.toLowerCase().includes('created') ||
-      header.toLowerCase().includes('timestamp') ||
-      header.toLowerCase().includes('time')
-    );
-
-    console.log('Date column found at index:', dateColumnIndex);
+    // Date is in column C (index 2)
+    const dateColumnIndex = 2;
+    console.log('Using column C (index 2) for date filtering');
 
     // Filter rows by user email and optionally by date
     const filteredRows = rows.filter(row => {
@@ -102,19 +96,15 @@ serve(async (req) => {
         return true;
       }
 
-      // If date filter is specified but no date column found, return the row
-      if (dateColumnIndex === -1) {
-        return true;
-      }
-
       // Check if the row's date matches the filter date
       const rowDate = row[dateColumnIndex];
       if (!rowDate) {
         return false;
       }
 
-      // Try to parse the date and compare
+      // Parse the date in format "7/2/2025" and compare
       try {
+        // Handle the MM/DD/YYYY or M/D/YYYY format
         const parsedRowDate = new Date(rowDate);
         const filterDateObj = new Date(filterDate);
         
