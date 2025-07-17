@@ -86,8 +86,22 @@ serve(async (req) => {
 
       if (!batchUpdateResponse.ok) {
         const errorText = await batchUpdateResponse.text();
-        console.error('Batch update failed:', errorText);
-        throw new Error(`Failed to update sheet: ${batchUpdateResponse.statusText}`);
+        console.error('Batch update failed:', {
+          status: batchUpdateResponse.status,
+          statusText: batchUpdateResponse.statusText,
+          errorText: errorText
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            error: `Failed to update sheet: ${batchUpdateResponse.status} ${batchUpdateResponse.statusText}`,
+            details: errorText
+          }),
+          { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
       }
 
       const updateResult = await batchUpdateResponse.json();
