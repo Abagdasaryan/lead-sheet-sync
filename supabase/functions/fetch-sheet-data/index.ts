@@ -41,6 +41,7 @@ serve(async (req) => {
 
     // Fetch data from Google Sheets
     const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
+    console.log('Making request to:', sheetsUrl);
     
     const response = await fetch(sheetsUrl, {
       headers: {
@@ -49,8 +50,13 @@ serve(async (req) => {
       },
     });
 
+    console.log('Google Sheets API response status:', response.status);
+    console.log('Google Sheets API response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Google Sheets API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.log('Google Sheets API error response:', errorText);
+      throw new Error(`Google Sheets API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data: GoogleSheetsResponse = await response.json();
