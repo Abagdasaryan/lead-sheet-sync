@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit } from "lucide-react";
+import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +19,10 @@ interface DashboardProps {
 export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>();
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
   const [editedData, setEditedData] = useState<Record<number, any>>({});
+  const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
 
   // Define editable columns
@@ -96,8 +98,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
     try {
       const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
-          userEmail: user.email,
-          filterDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined
+          userEmail: user.email
         }
       });
 
@@ -106,7 +107,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
       setSheetData(data.rows || []);
       toast({
         title: "Data loaded",
-        description: `Found ${data.rows?.length || 0} rows${selectedDate ? ` for ${format(selectedDate, 'PPP')}` : ''}.`,
+        description: `Found ${data.rows?.length || 0} rows from the last 3 days.`,
       });
     } catch (error: any) {
       toast({
@@ -121,7 +122,36 @@ export const Dashboard = ({ user }: DashboardProps) => {
 
   useEffect(() => {
     fetchSheetData();
-  }, [selectedDate]);
+  }, []);
+
+  // Sorting logic
+  const sortedData = [...sheetData].sort((a, b) => {
+    let aValue: string | number;
+    let bValue: string | number;
+    
+    switch (sortBy) {
+      case 'date':
+        aValue = new Date(a.date || '').getTime() || 0;
+        bValue = new Date(b.date || '').getTime() || 0;
+        break;
+      case 'status':
+        aValue = a.Status || '';
+        bValue = b.Status || '';
+        break;
+      case 'client':
+        aValue = a['CLIENT NAME'] || '';
+        bValue = b['CLIENT NAME'] || '';
+        break;
+      default:
+        return 0;
+    }
+    
+    if (sortOrder === 'asc') {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -164,53 +194,38 @@ export const Dashboard = ({ user }: DashboardProps) => {
           </div>
         </div>
 
-        {/* Filters Section */}
+        {/* Data Controls Section */}
         <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
           <Card className="shadow-elegant border-border/50 bg-gradient-to-r from-card to-card/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-primary" />
-                Filters
+                <ArrowUpDown className="h-5 w-5 text-primary" />
+                Data Controls
               </CardTitle>
-              <CardDescription>Filter your data by date range</CardDescription>
+              <CardDescription>Sort your data (showing last 3 days)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal transition-all duration-300",
-                        !selectedDate && "text-muted-foreground",
-                        "hover:shadow-primary hover:border-primary/50"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date to filter</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                {selectedDate && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedDate(undefined)}
-                    className="hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
-                  >
-                    <X className="mr-1 h-3 w-3" />
-                    Clear filter
-                  </Button>
-                )}
+                <Select value={sortBy} onValueChange={(value: 'date' | 'status' | 'client') => setSortBy(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="status">Status</SelectItem>
+                    <SelectItem value="client">Client Name</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="hover:bg-primary/10 hover:border-primary transition-all duration-300"
+                >
+                  <ArrowUpDown className="mr-2 h-4 w-4" />
+                  {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -226,7 +241,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{sheetData.length}</div>
               <p className="text-xs text-muted-foreground">
-                {selectedDate ? `for ${format(selectedDate, 'PPP')}` : 'all time'}
+                from last 3 days
               </p>
             </CardContent>
           </Card>
@@ -268,23 +283,18 @@ export const Dashboard = ({ user }: DashboardProps) => {
               </CardTitle>
               <CardDescription>
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
-                {selectedDate && (
-                  <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                    {format(selectedDate, 'PPP')}
-                  </span>
-                )}
+                <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
+                  Last 3 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {sheetData.length === 0 ? (
+              {sortedData.length === 0 ? (
                 <div className="text-center py-12">
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    {selectedDate 
-                      ? `No records found for ${format(selectedDate, 'PPP')}` 
-                      : 'No records found for your email'
-                    }
+                    No records found for your email in the last 3 days
                   </p>
                 </div>
               ) : (
@@ -304,7 +314,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {sheetData.map((row, rowIndex) => {
+                        {sortedData.map((row, rowIndex) => {
                           const isEditing = editingRows.has(rowIndex);
                           const currentData = isEditing ? { ...row, ...editedData[rowIndex] } : row;
                           

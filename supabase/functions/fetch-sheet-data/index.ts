@@ -17,8 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    const { userEmail, filterDate } = await req.json();
-    console.log('Fetching data for user email:', userEmail, 'filterDate:', filterDate);
+    const { userEmail } = await req.json();
+    console.log('Fetching data for user email:', userEmail);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -112,8 +112,15 @@ serve(async (req) => {
       });
     });
 
-    // Filter rows by user email and optionally by date
-    console.log('Filtering with userEmail:', userEmail, 'filterDate:', filterDate);
+    // Filter rows by user email and last 3 days
+    console.log('Filtering with userEmail:', userEmail);
+    
+    // Calculate date 3 days ago
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    threeDaysAgo.setHours(0, 0, 0, 0); // Start of day
+    
+    console.log('Filtering for dates from:', threeDaysAgo.toDateString(), 'onwards');
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
@@ -122,8 +129,7 @@ serve(async (req) => {
       console.log(`Checking row ${index + 1}:`, {
         repEmail: repEmail,
         rowDate: rowDate,
-        emailMatch: repEmail?.toLowerCase() === userEmail.toLowerCase(),
-        hasFilterDate: !!filterDate
+        emailMatch: repEmail?.toLowerCase() === userEmail.toLowerCase()
       });
       
       // First filter by email
@@ -132,13 +138,7 @@ serve(async (req) => {
         return false;
       }
 
-      // If no date filter is specified, return the row
-      if (!filterDate) {
-        console.log(`Row ${index + 1} matches email, no date filter - including`);
-        return true;
-      }
-
-      // Check if the row's date matches the filter date
+      // Check if the row's date is within last 3 days
       if (!rowDate) {
         console.log(`Row ${index + 1} has no date - excluding`);
         return false;
@@ -146,26 +146,24 @@ serve(async (req) => {
 
       // Parse the date in format "7/2/2025" and compare
       try {
-        // Handle the MM/DD/YYYY or M/D/YYYY format
         const parsedRowDate = new Date(rowDate);
-        const filterDateObj = new Date(filterDate);
+        parsedRowDate.setHours(0, 0, 0, 0); // Start of day for comparison
         
         console.log(`Row ${index + 1} date comparison:`, {
           rowDate: rowDate,
           parsedRowDate: parsedRowDate.toDateString(),
-          filterDate: filterDate,
-          filterDateObj: filterDateObj.toDateString(),
-          match: parsedRowDate.toDateString() === filterDateObj.toDateString()
+          threeDaysAgo: threeDaysAgo.toDateString(),
+          isWithinRange: parsedRowDate >= threeDaysAgo
         });
         
-        // Compare dates (ignore time)
-        const matches = parsedRowDate.toDateString() === filterDateObj.toDateString();
-        if (matches) {
-          console.log(`Row ${index + 1} DATE MATCH - including`);
+        // Check if date is within the last 3 days
+        const isWithinRange = parsedRowDate >= threeDaysAgo;
+        if (isWithinRange) {
+          console.log(`Row ${index + 1} within date range - including`);
         } else {
-          console.log(`Row ${index + 1} date mismatch - excluding`);
+          console.log(`Row ${index + 1} outside date range - excluding`);
         }
-        return matches;
+        return isWithinRange;
       } catch (error) {
         console.log('Error parsing date for row', index + 1, ':', rowDate, error);
         return false;
