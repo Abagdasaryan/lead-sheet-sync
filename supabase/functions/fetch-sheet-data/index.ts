@@ -74,6 +74,9 @@ serve(async (req) => {
     // Process the data - first row is headers
     const headers = data.values[0];
     const rows = data.values.slice(1);
+    
+    console.log('Headers found:', headers);
+    console.log('Total rows to process:', rows.length);
 
     // Find the RepEmail column index
     const repEmailIndex = headers.findIndex(header => 
@@ -92,24 +95,47 @@ serve(async (req) => {
     // Date is in column C (index 2)
     const dateColumnIndex = 2;
     console.log('Using column C (index 2) for date filtering');
+    console.log('Date column header:', headers[dateColumnIndex]);
+
+    // Log first few rows for debugging
+    console.log('First 3 rows preview:');
+    rows.slice(0, 3).forEach((row, index) => {
+      console.log(`Row ${index + 1}:`, {
+        repEmail: row[repEmailIndex],
+        date: row[dateColumnIndex],
+        fullRow: row
+      });
+    });
 
     // Filter rows by user email and optionally by date
-    const filteredRows = rows.filter(row => {
+    console.log('Filtering with userEmail:', userEmail, 'filterDate:', filterDate);
+    
+    const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
+      const rowDate = row[dateColumnIndex];
+      
+      console.log(`Checking row ${index + 1}:`, {
+        repEmail: repEmail,
+        rowDate: rowDate,
+        emailMatch: repEmail?.toLowerCase() === userEmail.toLowerCase(),
+        hasFilterDate: !!filterDate
+      });
       
       // First filter by email
       if (!repEmail || repEmail.toLowerCase() !== userEmail.toLowerCase()) {
+        console.log(`Row ${index + 1} email mismatch: "${repEmail}" vs "${userEmail}"`);
         return false;
       }
 
       // If no date filter is specified, return the row
       if (!filterDate) {
+        console.log(`Row ${index + 1} matches email, no date filter - including`);
         return true;
       }
 
       // Check if the row's date matches the filter date
-      const rowDate = row[dateColumnIndex];
       if (!rowDate) {
+        console.log(`Row ${index + 1} has no date - excluding`);
         return false;
       }
 
@@ -119,15 +145,30 @@ serve(async (req) => {
         const parsedRowDate = new Date(rowDate);
         const filterDateObj = new Date(filterDate);
         
+        console.log(`Row ${index + 1} date comparison:`, {
+          rowDate: rowDate,
+          parsedRowDate: parsedRowDate.toDateString(),
+          filterDate: filterDate,
+          filterDateObj: filterDateObj.toDateString(),
+          match: parsedRowDate.toDateString() === filterDateObj.toDateString()
+        });
+        
         // Compare dates (ignore time)
-        return parsedRowDate.toDateString() === filterDateObj.toDateString();
+        const matches = parsedRowDate.toDateString() === filterDateObj.toDateString();
+        if (matches) {
+          console.log(`Row ${index + 1} DATE MATCH - including`);
+        } else {
+          console.log(`Row ${index + 1} date mismatch - excluding`);
+        }
+        return matches;
       } catch (error) {
-        console.log('Error parsing date:', rowDate, error);
+        console.log('Error parsing date for row', index + 1, ':', rowDate, error);
         return false;
       }
     });
 
-    console.log('Filtered rows for user:', filteredRows.length);
+    console.log('Final filtered rows count:', filteredRows.length);
+    console.log('Filtered rows:', filteredRows);
 
     // Convert to objects with headers as keys
     const processedRows = filteredRows.map(row => {
