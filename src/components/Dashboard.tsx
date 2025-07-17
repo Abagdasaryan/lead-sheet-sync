@@ -34,8 +34,6 @@ export const Dashboard = ({ user }: DashboardProps) => {
   // Store row ID for editing rather than index
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editedRowData, setEditedRowData] = useState<any | null>(null);
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
@@ -169,59 +167,36 @@ export const Dashboard = ({ user }: DashboardProps) => {
     // Start with all data
     let filteredData = [...sheetData];
     
-    // Apply automatic 5-day filter (unless custom date range is set)
-    if (!startDate && !endDate) {
-      const fiveDaysAgo = new Date();
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    // Apply automatic 5-day filter
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    
+    filteredData = filteredData.filter(row => {
+      const rowDateStr = row.date;
+      if (!rowDateStr) return false;
       
-      filteredData = filteredData.filter(row => {
-        const rowDateStr = row.date;
-        if (!rowDateStr) return false;
-        
-        const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
-        if (!month || !day || !year) return false;
-        
-        const rowDate = new Date(year, month - 1, day);
-        return rowDate >= fiveDaysAgo;
-      });
-    }
+      const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
+      if (!month || !day || !year) return false;
+      
+      const rowDate = new Date(year, month - 1, day);
+      return rowDate >= fiveDaysAgo;
+    });
     
-    // Apply custom date filters if selected
-    if (startDate || endDate) {
-      filteredData = filteredData.filter(row => {
-        // Parse the date from the row (expected format like "7/7/2025")
-        const rowDateStr = row.date;
-        if (!rowDateStr) return false;
-        
-        // Try to parse the date in MM/DD/YYYY format
-        const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
-        if (!month || !day || !year) return false;
-        
-        const rowDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
-        
-        // Apply start date filter
-        if (startDate && rowDate < new Date(startDate.setHours(0, 0, 0, 0))) {
-          return false;
-        }
-        
-        // Apply end date filter
-        if (endDate && rowDate > new Date(endDate.setHours(23, 59, 59, 999))) {
-          return false;
-        }
-        
-        return true;
-      });
-    }
-    
-    // Always apply sorting to maintain consistent row indices
+    // Apply sorting
     return filteredData.sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
       
       switch (sortBy) {
         case 'date':
-          aValue = new Date(a.date || '').getTime() || 0;
-          bValue = new Date(b.date || '').getTime() || 0;
+          // Parse date strings for proper comparison
+          const aDateStr = a.date || '';
+          const bDateStr = b.date || '';
+          const [aMonth, aDay, aYear] = aDateStr.split('/').map(num => parseInt(num) || 0);
+          const [bMonth, bDay, bYear] = bDateStr.split('/').map(num => parseInt(num) || 0);
+          
+          aValue = new Date(aYear, aMonth - 1, aDay).getTime();
+          bValue = new Date(bYear, bMonth - 1, bDay).getTime();
           break;
         case 'status':
           aValue = a.Status || '';
@@ -241,7 +216,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
       }
     });
-  }, [sheetData, sortBy, sortOrder, startDate, endDate]);
+  }, [sheetData, sortBy, sortOrder]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -292,85 +267,10 @@ export const Dashboard = ({ user }: DashboardProps) => {
                 <ArrowUpDown className="h-5 w-5 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription>Sort and filter your data</CardDescription>
+              <CardDescription>Sort your data (showing last 5 days)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
-                {/* Date Range Filter */}
-                <div className="flex flex-wrap gap-2 items-center mb-4">
-                  <div className="flex flex-col">
-                    <Label htmlFor="start-date" className="mb-1 text-sm">From Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="start-date"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "w-[150px] justify-start text-left",
-                            !startDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, "MM/dd/yyyy") : <span>Start date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={setStartDate}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <Label htmlFor="end-date" className="mb-1 text-sm">To Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="end-date"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "w-[150px] justify-start text-left",
-                            !endDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {endDate ? format(endDate, "MM/dd/yyyy") : <span>End date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={setEndDate}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="flex items-end">
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setStartDate(undefined);
-                        setEndDate(undefined);
-                      }}
-                      className="mb-1 hover:bg-destructive/10"
-                    >
-                      <X className="h-4 w-4 mr-1" /> Clear
-                    </Button>
-                  </div>
-                </div>
-                
                 {/* Sorting Options */}
                 <Select value={sortBy} onValueChange={(value: 'date' | 'status' | 'client') => setSortBy(value)}>
                   <SelectTrigger className="w-[180px]">
@@ -407,7 +307,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{filteredAndSortedData.length}</div>
               <p className="text-xs text-muted-foreground">
-                {(!startDate && !endDate) ? 'from last 5 days' : 'in selected date range'}
+                from last 5 days
               </p>
             </CardContent>
           </Card>
@@ -450,7 +350,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                  {(!startDate && !endDate) ? 'Last 5 days • ' : ''}Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                  Last 5 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
                 </span>
               </CardDescription>
             </CardHeader>
@@ -460,9 +360,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    {(!startDate && !endDate) 
-                      ? "No records found for your email in the last 5 days" 
-                      : "No records found for your email in the selected date range"}
+                    No records found for your email in the last 5 days
                   </p>
                 </div>
               ) : (
