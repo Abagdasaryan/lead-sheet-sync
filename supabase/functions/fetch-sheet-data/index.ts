@@ -17,8 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    const { userEmail } = await req.json();
-    console.log('Fetching data for user email:', userEmail);
+    const { userEmail, userAlias } = await req.json();
+    console.log('Fetching data for user email:', userEmail, 'alias:', userAlias);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -144,37 +144,44 @@ serve(async (req) => {
     });
     console.log('Email counts:', emailCounts);
     
-    // ROBUST EMAIL FILTERING - handles multiple variations
-    console.log('=== ROBUST EMAIL FILTERING ===');
+    // ALIAS-BASED FILTERING SYSTEM
+    console.log('=== ALIAS-BASED FILTERING ===');
     
-    const normalizeEmail = (email) => {
-      if (!email) return '';
-      return email.toLowerCase().trim().replace(/\s+/g, '');
+    // Use alias if provided, otherwise fallback to email matching
+    const matchValue = userAlias || userEmail;
+    console.log('Matching with:', matchValue, '(type:', userAlias ? 'alias' : 'email', ')');
+    
+    const normalizeValue = (value) => {
+      if (!value) return '';
+      return value.toLowerCase().trim().replace(/\s+/g, '');
     };
     
-    const userEmailNormalized = normalizeEmail(userEmail);
-    const userEmailWithoutDomain = userEmailNormalized.split('@')[0]; // "abgutterinstall"
-    
-    console.log('User email normalized:', userEmailNormalized);
-    console.log('User email without domain:', userEmailWithoutDomain);
+    const matchValueNormalized = normalizeValue(matchValue);
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
-      const repEmailNormalized = normalizeEmail(repEmail);
+      const repEmailNormalized = normalizeValue(repEmail);
       
-      // Try multiple matching strategies
-      const exactMatch = repEmailNormalized === userEmailNormalized;
-      const withoutDomainMatch = repEmailNormalized === userEmailWithoutDomain || 
-                                repEmailNormalized === userEmailWithoutDomain + '@gmail.com';
-      const containsMatch = repEmailNormalized.includes(userEmailWithoutDomain);
-      
-      const isMatch = exactMatch || withoutDomainMatch || containsMatch;
+      // For alias matching, do exact match. For email, do fuzzy matching
+      let isMatch;
+      if (userAlias) {
+        // Exact alias matching
+        isMatch = repEmailNormalized === matchValueNormalized;
+      } else {
+        // Fuzzy email matching (keep old logic as fallback)
+        const exactMatch = repEmailNormalized === matchValueNormalized;
+        const withoutDomain = matchValueNormalized.split('@')[0];
+        const withoutDomainMatch = repEmailNormalized === withoutDomain || 
+                                  repEmailNormalized === withoutDomain + '@gmail.com';
+        const containsMatch = repEmailNormalized.includes(withoutDomain);
+        isMatch = exactMatch || withoutDomainMatch || containsMatch;
+      }
       
       if (isMatch) {
         console.log(`MATCH found at row ${index + 1}:`, {
           original: repEmail,
           normalized: repEmailNormalized,
-          matchType: exactMatch ? 'exact' : withoutDomainMatch ? 'domain' : 'contains',
+          matchType: userAlias ? 'alias' : 'email',
           date: row[dateColumnIndex],
           clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1]
         });
@@ -183,8 +190,7 @@ serve(async (req) => {
       return isMatch;
     });
 
-    console.log('Filtered rows count with robust matching:', filteredRows.length);
-    console.log('=== END DEBUGGING ===');
+    console.log('Filtered rows count:', filteredRows.length);
 
     // Define the columns we want to return
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];

@@ -3,12 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit, ArrowUpDown } from "lucide-react";
+import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit, ArrowUpDown, User as UserIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +17,22 @@ interface DashboardProps {
   user: User;
 }
 
+interface Profile {
+  id: string;
+  user_id: string;
+  email: string;
+  rep_email: string | null;
+  rep_alias: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [aliasInput, setAliasInput] = useState("");
+  const [editingAlias, setEditingAlias] = useState(false);
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
   const [editedData, setEditedData] = useState<Record<number, any>>({});
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
@@ -93,12 +107,54 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }));
   };
 
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+      setAliasInput(data.rep_alias || '');
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const saveAlias = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ rep_alias: aliasInput || null })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, rep_alias: aliasInput } : null);
+      setEditingAlias(false);
+      
+      toast({
+        title: "Alias saved",
+        description: "Your sheet alias has been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchSheetData = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
-          userEmail: user.email
+          userEmail: user.email,
+          userAlias: profile?.rep_alias
         }
       });
 
@@ -107,7 +163,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
       setSheetData(data.rows || []);
       toast({
         title: "Data loaded",
-        description: `Found ${data.rows?.length || 0} rows from the last 7 days.`,
+        description: `Found ${data.rows?.length || 0} rows${profile?.rep_alias ? ' using alias' : ''}.`,
       });
     } catch (error: any) {
       toast({
@@ -121,8 +177,14 @@ export const Dashboard = ({ user }: DashboardProps) => {
   };
 
   useEffect(() => {
-    fetchSheetData();
-  }, []);
+    fetchProfile();
+  }, [user.id]);
+
+  useEffect(() => {
+    if (profile) {
+      fetchSheetData();
+    }
+  }, [profile]);
 
   // Sorting logic
   const sortedData = [...sheetData].sort((a, b) => {
@@ -226,6 +288,67 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                   {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Alias Management Section */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.15s" }}>
+          <Card className="shadow-elegant border-border/50 bg-gradient-to-r from-card to-card/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserIcon className="h-5 w-5 text-primary" />
+                Sheet Alias Settings
+              </CardTitle>
+              <CardDescription>
+                Set your alias to match what's in the RepEmail column of the spreadsheet
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-end gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="alias">Sheet Alias</Label>
+                  <Input
+                    id="alias"
+                    placeholder="e.g. abgutterinstall, john.doe, etc."
+                    value={aliasInput}
+                    onChange={(e) => setAliasInput(e.target.value)}
+                    disabled={!editingAlias && !aliasInput}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Current: {profile?.rep_alias || 'None set (using email)'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {editingAlias ? (
+                    <>
+                      <Button onClick={saveAlias} size="sm">
+                        <Save className="h-4 w-4 mr-1" />
+                        Save
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setEditingAlias(false);
+                          setAliasInput(profile?.rep_alias || '');
+                        }}
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      onClick={() => setEditingAlias(true)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      {profile?.rep_alias ? 'Edit' : 'Set'} Alias
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
