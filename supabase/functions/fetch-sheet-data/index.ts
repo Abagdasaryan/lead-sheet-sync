@@ -144,6 +144,11 @@ serve(async (req) => {
     });
     console.log('Email counts:', emailCounts);
     
+    // TEMPORARILY DISABLE EMAIL FILTERING TO SEE ALL DATA
+    console.log('=== SHOWING ALL DATA (NO EMAIL FILTERING) ===');
+    const filteredRows = rows; // Show all rows for debugging
+    
+    /* Original filtering code - commented out for debugging
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
       const emailMatches = repEmail && repEmail.toLowerCase().trim() === userEmail.toLowerCase().trim();
@@ -158,8 +163,9 @@ serve(async (req) => {
       
       return emailMatches;
     });
+    */
 
-    console.log('Final filtered rows count:', filteredRows.length);
+    console.log('Returning ALL rows (no filtering):', filteredRows.length);
     console.log('=== END DEBUGGING ===');
 
     // Define the columns we want to return
