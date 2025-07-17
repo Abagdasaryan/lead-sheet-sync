@@ -160,10 +160,21 @@ async function generateJWT(serviceAccount: any): Promise<string> {
   
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   
+  // Convert PEM private key to DER format
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  const pemContents = serviceAccount.private_key
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s/g, "");
+  
+  // Decode base64 to get DER format
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
   // Import the private key
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
-    new TextEncoder().encode(serviceAccount.private_key),
+    binaryDer,
     {
       name: 'RSASSA-PKCS1-v1_5',
       hash: 'SHA-256',
