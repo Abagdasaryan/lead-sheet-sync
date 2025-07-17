@@ -112,15 +112,17 @@ serve(async (req) => {
       });
     });
 
-    // Filter rows by user email and last 3 days
+    // Filter rows by user email and last 30 days
     console.log('Filtering with userEmail:', userEmail);
     
-    // Calculate date 3 days ago
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    threeDaysAgo.setHours(0, 0, 0, 0); // Start of day
+    // Calculate date 30 days ago for a wider range
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0); // Start of day
     
-    console.log('Filtering for dates from:', threeDaysAgo.toDateString(), 'onwards');
+    console.log('Filtering for dates from:', thirtyDaysAgo.toDateString(), 'onwards');
+    console.log('Today is:', new Date().toDateString());
+    console.log('Looking specifically for dates: 7/17, 7/16, 7/15');
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
@@ -152,12 +154,12 @@ serve(async (req) => {
         console.log(`Row ${index + 1} date comparison:`, {
           rowDate: rowDate,
           parsedRowDate: parsedRowDate.toDateString(),
-          threeDaysAgo: threeDaysAgo.toDateString(),
-          isWithinRange: parsedRowDate >= threeDaysAgo
+          thirtyDaysAgo: thirtyDaysAgo.toDateString(),
+          isWithinRange: parsedRowDate >= thirtyDaysAgo
         });
         
-        // Check if date is within the last 3 days
-        const isWithinRange = parsedRowDate >= threeDaysAgo;
+        // Check if date is within the last 30 days
+        const isWithinRange = parsedRowDate >= thirtyDaysAgo;
         if (isWithinRange) {
           console.log(`Row ${index + 1} within date range - including`);
         } else {
