@@ -187,23 +187,14 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Filter and sort data - show only last 5 days and disable sorting when editing
+  // Sort data - disable sorting when editing to prevent confusion
   const sortedData = React.useMemo(() => {
-    // Filter to last 5 days
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    
-    const filteredData = sheetData.filter(row => {
-      const rowDate = new Date(row.date || '');
-      return rowDate >= fiveDaysAgo;
-    });
-    
     if (editingRows.size > 0) {
       // Don't sort while editing to prevent row confusion
-      return filteredData;
+      return sheetData;
     }
     
-    return [...filteredData].sort((a, b) => {
+    return [...sheetData].sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
       
@@ -281,7 +272,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                 <ArrowUpDown className="h-5 w-5 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription>Sort your data (showing last 5 days)</CardDescription>
+              <CardDescription>Sort your data</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
@@ -320,7 +311,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{sortedData.length}</div>
               <p className="text-xs text-muted-foreground">
-                from last 5 days
+                total records
               </p>
             </CardContent>
           </Card>
@@ -363,7 +354,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                  Last 5 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                  Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
                 </span>
               </CardDescription>
             </CardHeader>
@@ -373,7 +364,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    No records found for your email in the last 5 days
+                    No records found for your email
                   </p>
                 </div>
               ) : (
