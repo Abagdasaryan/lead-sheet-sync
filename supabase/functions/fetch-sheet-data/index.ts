@@ -137,12 +137,27 @@ serve(async (req) => {
     console.log('User email to match:', userEmail);
     console.log('Does the sheet contain abgutterinstall@gmail.com?', uniqueEmails.includes('abgutterinstall@gmail.com'));
     
-    // Count rows per email
+    // Count rows per email and show detailed breakdown
     const emailCounts = {};
-    allEmails.forEach(email => {
-      emailCounts[email] = (emailCounts[email] || 0) + 1;
+    const emailRowDetails = {};
+    
+    rows.forEach((row, index) => {
+      const repEmail = row[repEmailIndex];
+      if (repEmail) {
+        const cleanEmail = repEmail.trim();
+        emailCounts[cleanEmail] = (emailCounts[cleanEmail] || 0) + 1;
+        if (!emailRowDetails[cleanEmail]) emailRowDetails[cleanEmail] = [];
+        emailRowDetails[cleanEmail].push({
+          rowIndex: index + 1,
+          date: row[dateColumnIndex],
+          client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A'
+        });
+      }
     });
+    
     console.log('Email counts:', emailCounts);
+    console.log('Detailed breakdown for "ab":', emailRowDetails['ab'] || 'No rows found');
+    console.log('Detailed breakdown for "moderngutter12@gmail.com":', emailRowDetails['moderngutter12@gmail.com'] || 'No rows found');
     
     // SIMPLIFIED ROBUST FILTERING SYSTEM
     console.log('=== FILTERING DEBUG ===');
