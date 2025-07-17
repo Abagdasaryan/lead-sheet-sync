@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp } from "lucide-react";
+import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,13 @@ export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
+  const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
+  const [editedData, setEditedData] = useState<Record<number, any>>({});
   const { toast } = useToast();
+
+  // Define editable columns
+  const editableColumns = ['Status', 'Lost Reason', 'Last Price'];
+  const allColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -26,6 +33,62 @@ export const Dashboard = ({ user }: DashboardProps) => {
       title: "Logged out",
       description: "You have been successfully logged out.",
     });
+  };
+
+  const handleEdit = (rowIndex: number) => {
+    setEditingRows(prev => new Set([...prev, rowIndex]));
+    // Initialize edited data with current row data
+    if (!editedData[rowIndex]) {
+      setEditedData(prev => ({
+        ...prev,
+        [rowIndex]: { ...sheetData[rowIndex] }
+      }));
+    }
+  };
+
+  const handleSave = (rowIndex: number) => {
+    // Update the main data with edited values
+    setSheetData(prev => prev.map((row, index) => 
+      index === rowIndex ? { ...row, ...editedData[rowIndex] } : row
+    ));
+    
+    // Remove from editing set
+    setEditingRows(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(rowIndex);
+      return newSet;
+    });
+
+    toast({
+      title: "Changes saved",
+      description: "Row has been updated successfully.",
+    });
+  };
+
+  const handleCancel = (rowIndex: number) => {
+    // Remove from editing set and discard changes
+    setEditingRows(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(rowIndex);
+      return newSet;
+    });
+    
+    // Remove edited data
+    setEditedData(prev => {
+      const newData = { ...prev };
+      delete newData[rowIndex];
+      return newData;
+    });
+  };
+
+  const handleCellChange = (rowIndex: number, column: string, value: string) => {
+    setEditedData(prev => ({
+      ...prev,
+      [rowIndex]: {
+        ...prev[rowIndex],
+        [column]: value
+      }
+    }));
   };
 
   const fetchSheetData = async () => {
@@ -230,26 +293,87 @@ export const Dashboard = ({ user }: DashboardProps) => {
                     <table className="w-full">
                       <thead className="bg-gradient-to-r from-muted to-muted/50">
                         <tr>
-                          {Object.keys(sheetData[0] || {}).map((key) => (
-                            <th key={key} className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
-                              {key}
+                          {allColumns.map((column) => (
+                            <th key={column} className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
+                              {column}
                             </th>
                           ))}
+                          <th className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {sheetData.map((row, index) => (
-                          <tr 
-                            key={index} 
-                            className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/30"
-                          >
-                            {Object.values(row).map((value: any, cellIndex) => (
-                              <td key={cellIndex} className="border-r border-border/20 p-4 text-sm">
-                                {String(value)}
+                        {sheetData.map((row, rowIndex) => {
+                          const isEditing = editingRows.has(rowIndex);
+                          const currentData = isEditing ? { ...row, ...editedData[rowIndex] } : row;
+                          
+                          return (
+                            <tr 
+                              key={rowIndex} 
+                              className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/30"
+                            >
+                              {allColumns.map((column) => {
+                                const isEditable = editableColumns.includes(column);
+                                const cellValue = currentData[column] || '';
+                                
+                                return (
+                                  <td key={column} className="border-r border-border/20 p-4 text-sm">
+                                    {isEditing && isEditable ? (
+                                      <Input
+                                        value={cellValue}
+                                        onChange={(e) => handleCellChange(rowIndex, column, e.target.value)}
+                                        className="w-full min-w-[120px]"
+                                        placeholder={`Enter ${column}`}
+                                      />
+                                    ) : (
+                                      <span className={cn(
+                                        isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
+                                        column === 'Status' && cellValue && getStatusColor(cellValue),
+                                        "block min-h-[32px] flex items-center"
+                                      )}>
+                                        {cellValue}
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              <td className="border-r border-border/20 p-4 text-sm">
+                                <div className="flex gap-2">
+                                  {isEditing ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleSave(rowIndex)}
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                      >
+                                        <Save className="h-3 w-3 mr-1" />
+                                        Save
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleCancel(rowIndex)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEdit(rowIndex)}
+                                      className="hover:bg-primary/10 hover:border-primary"
+                                    >
+                                      <Edit className="h-3 w-3 mr-1" />
+                                      Edit
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
-                            ))}
-                          </tr>
-                        ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -261,4 +385,19 @@ export const Dashboard = ({ user }: DashboardProps) => {
       </div>
     </div>
   );
+};
+
+// Helper function to get status colors
+const getStatusColor = (status: string) => {
+  const statusLower = status.toLowerCase();
+  if (statusLower.includes('confirmed') || statusLower.includes('booked')) {
+    return 'text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-medium';
+  }
+  if (statusLower.includes('pending') || statusLower.includes('scheduled')) {
+    return 'text-yellow-600 bg-yellow-50 px-2 py-1 rounded-full text-xs font-medium';
+  }
+  if (statusLower.includes('cancelled') || statusLower.includes('lost')) {
+    return 'text-red-600 bg-red-50 px-2 py-1 rounded-full text-xs font-medium';
+  }
+  return 'text-gray-600 bg-gray-50 px-2 py-1 rounded-full text-xs font-medium';
 };

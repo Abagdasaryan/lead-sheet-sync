@@ -170,11 +170,25 @@ serve(async (req) => {
     console.log('Final filtered rows count:', filteredRows.length);
     console.log('Filtered rows:', filteredRows);
 
-    // Convert to objects with headers as keys
+    // Define the columns we want to return
+    const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
+    
+    // Find the indices of allowed columns (case-insensitive)
+    const columnIndices = allowedColumns.map(allowedCol => {
+      const index = headers.findIndex(header => 
+        header.toLowerCase() === allowedCol.toLowerCase() ||
+        header.toLowerCase().replace(/\s+/g, '') === allowedCol.toLowerCase().replace(/\s+/g, '')
+      );
+      return { name: allowedCol, index, originalName: index >= 0 ? headers[index] : null };
+    }).filter(col => col.index >= 0);
+
+    console.log('Column mapping:', columnIndices);
+
+    // Convert to objects with only allowed headers as keys
     const processedRows = filteredRows.map(row => {
       const obj: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        obj[header] = row[index] || '';
+      columnIndices.forEach(({ name, index }) => {
+        obj[name] = row[index] || '';
       });
       return obj;
     });
