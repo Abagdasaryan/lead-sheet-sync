@@ -47,7 +47,7 @@ serve(async (req) => {
     if (rowData.Status) {
       console.log('Adding Status update:', rowData.Status);
       updates.push({
-        range: `Status!K${sheetRowNumber}`,
+        range: `K${sheetRowNumber}`,
         values: [[rowData.Status]]
       });
     }
@@ -55,7 +55,7 @@ serve(async (req) => {
     if (rowData['Lost Reason'] !== undefined) {
       console.log('Adding Lost Reason update:', rowData['Lost Reason']);
       updates.push({
-        range: `Lost Reason!L${sheetRowNumber}`,
+        range: `L${sheetRowNumber}`,
         values: [[rowData['Lost Reason'] || '']]
       });
     }
@@ -64,7 +64,7 @@ serve(async (req) => {
       const priceValue = rowData['Last Price'].toString().replace(/[$,]/g, '');
       console.log('Adding Last Price update:', priceValue);
       updates.push({
-        range: `Last Price!M${sheetRowNumber}`,
+        range: `M${sheetRowNumber}`,
         values: [[priceValue]]
       });
     }
