@@ -30,7 +30,9 @@ serve(async (req) => {
     console.log('Service account loaded for:', serviceAccount.client_email);
 
     // Get access token using JWT
+    console.log('Generating JWT...');
     const jwt = await generateJWT(serviceAccount);
+    console.log('JWT generated successfully, getting access token...');
     const accessToken = await getAccessToken(jwt);
 
     // Using the provided sandbox Google Sheet
@@ -160,40 +162,53 @@ async function generateJWT(serviceAccount: any): Promise<string> {
   
   const signatureInput = `${encodedHeader}.${encodedPayload}`;
   
-  // Convert PEM private key to DER format
-  const pemHeader = "-----BEGIN PRIVATE KEY-----";
-  const pemFooter = "-----END PRIVATE KEY-----";
-  const pemContents = serviceAccount.private_key
-    .replace(pemHeader, "")
-    .replace(pemFooter, "")
-    .replace(/\s/g, "");
-  
-  // Decode base64 to get DER format
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-  
-  // Import the private key
-  const privateKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryDer,
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256',
-    },
-    false,
-    ['sign']
-  );
+  try {
+    console.log('Processing private key...');
+    
+    // Convert PEM private key to DER format
+    let privateKeyPem = serviceAccount.private_key;
+    
+    // Remove PEM headers/footers and whitespace
+    privateKeyPem = privateKeyPem
+      .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+      .replace(/-----END PRIVATE KEY-----/g, '')
+      .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+      .replace(/-----END RSA PRIVATE KEY-----/g, '')
+      .replace(/\s/g, '');
+    
+    console.log('PEM content length after cleanup:', privateKeyPem.length);
+    
+    // Decode base64 to get DER format
+    const binaryDer = Uint8Array.from(atob(privateKeyPem), c => c.charCodeAt(0));
+    console.log('DER binary length:', binaryDer.length);
+    
+    // Import the private key
+    const privateKey = await crypto.subtle.importKey(
+      'pkcs8',
+      binaryDer,
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+      },
+      false,
+      ['sign']
+    );
 
-  // Sign the JWT
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    privateKey,
-    new TextEncoder().encode(signatureInput)
-  );
+    // Sign the JWT
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      privateKey,
+      new TextEncoder().encode(signatureInput)
+    );
 
-  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
-  return `${signatureInput}.${encodedSignature}`;
+    return `${signatureInput}.${encodedSignature}`;
+  } catch (error) {
+    console.error('Error in generateJWT:', error);
+    throw new Error(`JWT generation failed: ${error.message}`);
+  }
 }
 
 async function getAccessToken(jwt: string): Promise<string> {
