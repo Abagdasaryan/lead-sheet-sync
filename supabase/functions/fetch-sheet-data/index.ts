@@ -38,7 +38,7 @@ serve(async (req) => {
 
     // Using the provided sandbox Google Sheet
     const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
-    const range = 'Sheet1!A1:Z1000'; // More specific range
+    const range = 'A1:Z1000'; // Simplified range without sheet name
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
 
