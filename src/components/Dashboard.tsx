@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -61,98 +61,203 @@ export const Dashboard = ({ user }: DashboardProps) => {
   }, [selectedDate]);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user.email}</p>
-          </div>
-          <div className="space-x-2">
-            <Button onClick={fetchSheetData} disabled={loading}>
-              {loading ? "Loading..." : "Refresh Data"}
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-[240px] justify-start text-left font-normal",
-                  !selectedDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date to filter</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-          {selectedDate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedDate(undefined)}
-              className="ml-2"
-            >
-              Clear filter
-            </Button>
-          )}
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Sheet Data</CardTitle>
-            <CardDescription>
-              Data filtered for your email: {user.email}
-              {selectedDate && ` • Date: ${format(selectedDate, 'PPP')}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {sheetData.length === 0 ? (
-              <p className="text-muted-foreground">No data found for your email.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-border">
-                  <thead>
-                    <tr className="bg-muted">
-                      {Object.keys(sheetData[0] || {}).map((key) => (
-                        <th key={key} className="border border-border p-2 text-left">
-                          {key}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheetData.map((row, index) => (
-                      <tr key={index}>
-                        {Object.values(row).map((value: any, cellIndex) => (
-                          <td key={cellIndex} className="border border-border p-2">
-                            {String(value)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Header Section */}
+        <div className="animate-slide-up">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Analytics Dashboard
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Welcome back, <span className="text-foreground font-medium">{user.email}</span>
+              </p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Database className="h-4 w-4" />
+                <span>Connected to Google Sheets</span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={fetchSheetData} 
+                disabled={loading}
+                className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105"
+                size="lg"
+              >
+                <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                {loading ? "Loading..." : "Refresh Data"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+                size="lg"
+                className="hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <Card className="shadow-elegant border-border/50 bg-gradient-to-r from-card to-card/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-primary" />
+                Filters
+              </CardTitle>
+              <CardDescription>Filter your data by date range</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal transition-all duration-300",
+                        !selectedDate && "text-muted-foreground",
+                        "hover:shadow-primary hover:border-primary/50"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date to filter</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {selectedDate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedDate(undefined)}
+                    className="hover:bg-destructive/10 hover:text-destructive transition-all duration-300"
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    Clear filter
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+          <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">{sheetData.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {selectedDate ? `for ${format(selectedDate, 'PPP')}` : 'all time'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">User Email</CardTitle>
+              <Database className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold truncate">{user.email}</div>
+              <p className="text-xs text-muted-foreground">
+                authenticated user
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Data Source</CardTitle>
+              <Filter className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">Google Sheets</div>
+              <p className="text-xs text-muted-foreground">
+                live connection
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Data Table */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
+          <Card className="shadow-elegant border-border/50 bg-gradient-to-br from-card to-card/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                Your Sheet Data
+              </CardTitle>
+              <CardDescription>
+                Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
+                {selectedDate && (
+                  <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
+                    {format(selectedDate, 'PPP')}
+                  </span>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {sheetData.length === 0 ? (
+                <div className="text-center py-12">
+                  <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground text-lg mb-2">No data found</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedDate 
+                      ? `No records found for ${format(selectedDate, 'PPP')}` 
+                      : 'No records found for your email'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border/50 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-muted to-muted/50">
+                        <tr>
+                          {Object.keys(sheetData[0] || {}).map((key) => (
+                            <th key={key} className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sheetData.map((row, index) => (
+                          <tr 
+                            key={index} 
+                            className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/30"
+                          >
+                            {Object.values(row).map((value: any, cellIndex) => (
+                              <td key={cellIndex} className="border-r border-border/20 p-4 text-sm">
+                                {String(value)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
