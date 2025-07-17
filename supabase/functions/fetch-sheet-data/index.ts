@@ -112,17 +112,9 @@ serve(async (req) => {
       });
     });
 
-    // Filter rows by user email and last 7 days
+    // Filter rows by user email (removing date filter for debugging)
     console.log('Filtering with userEmail:', userEmail);
-    
-    // Calculate date 7 days ago
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0); // Start of day
-    
-    console.log('Filtering for dates from:', sevenDaysAgo.toDateString(), 'onwards');
-    console.log('Today is:', new Date().toDateString());
-    console.log('Looking specifically for dates: 7/17, 7/16, 7/15');
+    console.log('Total rows to check:', rows.length);
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
@@ -134,42 +126,14 @@ serve(async (req) => {
         emailMatch: repEmail?.toLowerCase() === userEmail.toLowerCase()
       });
       
-      // First filter by email
+      // Only filter by email for now
       if (!repEmail || repEmail.toLowerCase() !== userEmail.toLowerCase()) {
         console.log(`Row ${index + 1} email mismatch: "${repEmail}" vs "${userEmail}"`);
         return false;
       }
 
-      // Check if the row's date is within last 7 days
-      if (!rowDate) {
-        console.log(`Row ${index + 1} has no date - excluding`);
-        return false;
-      }
-
-      // Parse the date in format "7/2/2025" and compare
-      try {
-        const parsedRowDate = new Date(rowDate);
-        parsedRowDate.setHours(0, 0, 0, 0); // Start of day for comparison
-        
-        console.log(`Row ${index + 1} date comparison:`, {
-          rowDate: rowDate,
-          parsedRowDate: parsedRowDate.toDateString(),
-          sevenDaysAgo: sevenDaysAgo.toDateString(),
-          isWithinRange: parsedRowDate >= sevenDaysAgo
-        });
-        
-        // Check if date is within the last 7 days
-        const isWithinRange = parsedRowDate >= sevenDaysAgo;
-        if (isWithinRange) {
-          console.log(`Row ${index + 1} within date range - including`);
-        } else {
-          console.log(`Row ${index + 1} outside date range - excluding`);
-        }
-        return isWithinRange;
-      } catch (error) {
-        console.log('Error parsing date for row', index + 1, ':', rowDate, error);
-        return false;
-      }
+      console.log(`Row ${index + 1} matches email - including`);
+      return true;
     });
 
     console.log('Final filtered rows count:', filteredRows.length);
