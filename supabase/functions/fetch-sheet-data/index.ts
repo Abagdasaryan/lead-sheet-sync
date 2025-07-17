@@ -144,28 +144,46 @@ serve(async (req) => {
     });
     console.log('Email counts:', emailCounts);
     
-    // TEMPORARILY DISABLE EMAIL FILTERING TO SEE ALL DATA
-    console.log('=== SHOWING ALL DATA (NO EMAIL FILTERING) ===');
-    const filteredRows = rows; // Show all rows for debugging
+    // ROBUST EMAIL FILTERING - handles multiple variations
+    console.log('=== ROBUST EMAIL FILTERING ===');
     
-    /* Original filtering code - commented out for debugging
+    const normalizeEmail = (email) => {
+      if (!email) return '';
+      return email.toLowerCase().trim().replace(/\s+/g, '');
+    };
+    
+    const userEmailNormalized = normalizeEmail(userEmail);
+    const userEmailWithoutDomain = userEmailNormalized.split('@')[0]; // "abgutterinstall"
+    
+    console.log('User email normalized:', userEmailNormalized);
+    console.log('User email without domain:', userEmailWithoutDomain);
+    
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
-      const emailMatches = repEmail && repEmail.toLowerCase().trim() === userEmail.toLowerCase().trim();
+      const repEmailNormalized = normalizeEmail(repEmail);
       
-      if (emailMatches) {
+      // Try multiple matching strategies
+      const exactMatch = repEmailNormalized === userEmailNormalized;
+      const withoutDomainMatch = repEmailNormalized === userEmailWithoutDomain || 
+                                repEmailNormalized === userEmailWithoutDomain + '@gmail.com';
+      const containsMatch = repEmailNormalized.includes(userEmailWithoutDomain);
+      
+      const isMatch = exactMatch || withoutDomainMatch || containsMatch;
+      
+      if (isMatch) {
         console.log(`MATCH found at row ${index + 1}:`, {
-          repEmail: repEmail,
+          original: repEmail,
+          normalized: repEmailNormalized,
+          matchType: exactMatch ? 'exact' : withoutDomainMatch ? 'domain' : 'contains',
           date: row[dateColumnIndex],
           clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1]
         });
       }
       
-      return emailMatches;
+      return isMatch;
     });
-    */
 
-    console.log('Returning ALL rows (no filtering):', filteredRows.length);
+    console.log('Filtered rows count with robust matching:', filteredRows.length);
     console.log('=== END DEBUGGING ===');
 
     // Define the columns we want to return
