@@ -189,11 +189,29 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Filter by date range and sort data - always maintain consistent order
+  // Filter by date range and sort data - show last 5 days by default
   const filteredAndSortedData = React.useMemo(() => {
-    // Apply date filters if selected
+    // Start with all data
     let filteredData = [...sheetData];
     
+    // Apply automatic 5-day filter (unless custom date range is set)
+    if (!startDate && !endDate) {
+      const fiveDaysAgo = new Date();
+      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+      
+      filteredData = filteredData.filter(row => {
+        const rowDateStr = row.date;
+        if (!rowDateStr) return false;
+        
+        const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
+        if (!month || !day || !year) return false;
+        
+        const rowDate = new Date(year, month - 1, day);
+        return rowDate >= fiveDaysAgo;
+      });
+    }
+    
+    // Apply custom date filters if selected
     if (startDate || endDate) {
       filteredData = filteredData.filter(row => {
         // Parse the date from the row (expected format like "7/7/2025")
@@ -414,7 +432,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{filteredAndSortedData.length}</div>
               <p className="text-xs text-muted-foreground">
-                total records
+                {(!startDate && !endDate) ? 'from last 5 days' : 'in selected date range'}
               </p>
             </CardContent>
           </Card>
@@ -457,7 +475,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                  Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                  {(!startDate && !endDate) ? 'Last 5 days • ' : ''}Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
                 </span>
               </CardDescription>
             </CardHeader>
@@ -467,7 +485,9 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    No records found for your email
+                    {(!startDate && !endDate) 
+                      ? "No records found for your email in the last 5 days" 
+                      : "No records found for your email in the selected date range"}
                   </p>
                 </div>
               ) : (
