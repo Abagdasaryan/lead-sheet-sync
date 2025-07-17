@@ -5,12 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-interface AuthFormProps {
-  mode: "login" | "signup";
-  onToggleMode: () => void;
-}
+interface AuthFormProps {}
 
-export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
+export const AuthForm = ({}: AuthFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,34 +18,17 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Account created!",
-          description: "Please check your email to confirm your account.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        });
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
+      });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -63,9 +43,9 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>{mode === "login" ? "Login" : "Sign Up"}</CardTitle>
+        <CardTitle>Login</CardTitle>
         <CardDescription>
-          {mode === "login" ? "Welcome back" : "Create your account"}
+          Welcome back
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -89,16 +69,9 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Loading..." : mode === "login" ? "Login" : "Sign Up"}
+            {loading ? "Loading..." : "Login"}
           </Button>
         </form>
-        <div className="mt-4 text-center">
-          <Button variant="link" onClick={onToggleMode}>
-            {mode === "login" 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Login"}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

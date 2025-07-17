@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthForm } from "@/components/AuthForm";
 
 const Auth = () => {
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,10 +28,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <AuthForm 
-        mode={mode} 
-        onToggleMode={() => setMode(mode === "login" ? "signup" : "login")} 
-      />
+      <AuthForm />
     </div>
   );
 };
