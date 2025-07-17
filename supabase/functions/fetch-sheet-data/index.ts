@@ -112,9 +112,16 @@ serve(async (req) => {
       });
     });
 
-    // Filter rows by user email (removing date filter for debugging)
+    // Filter rows by user email (debugging email matching)
     console.log('Filtering with userEmail:', userEmail);
     console.log('Total rows to check:', rows.length);
+    
+    // First, let's see all unique email addresses in the RepEmail column
+    const allEmails = rows.map(row => row[repEmailIndex]).filter(email => email && email.trim());
+    const uniqueEmails = [...new Set(allEmails)];
+    console.log('All unique emails in RepEmail column:', uniqueEmails);
+    console.log('RepEmail column index:', repEmailIndex);
+    console.log('User email to match:', userEmail);
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
@@ -123,11 +130,13 @@ serve(async (req) => {
       console.log(`Checking row ${index + 1}:`, {
         repEmail: repEmail,
         rowDate: rowDate,
-        emailMatch: repEmail?.toLowerCase() === userEmail.toLowerCase()
+        repEmailTrimmed: repEmail?.trim(),
+        userEmailTrimmed: userEmail.trim(),
+        emailMatch: repEmail?.toLowerCase().trim() === userEmail.toLowerCase().trim()
       });
       
-      // Only filter by email for now
-      if (!repEmail || repEmail.toLowerCase() !== userEmail.toLowerCase()) {
+      // Only filter by email for now - use trimmed comparison
+      if (!repEmail || repEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
         console.log(`Row ${index + 1} email mismatch: "${repEmail}" vs "${userEmail}"`);
         return false;
       }
