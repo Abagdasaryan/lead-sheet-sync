@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,23 +60,52 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   };
 
-  const handleSave = (rowIndex: number) => {
-    // Update the main data with edited values
-    setSheetData(prev => prev.map((row, index) => 
-      index === rowIndex ? { ...row, ...editedData[rowIndex] } : row
-    ));
-    
-    // Remove from editing set
-    setEditingRows(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(rowIndex);
-      return newSet;
-    });
+  const handleSave = async (rowIndex: number) => {
+    try {
+      // Show loading state
+      const updatedData = { ...sheetData[rowIndex], ...editedData[rowIndex] };
+      
+      // Update Google Sheets
+      const { data, error } = await supabase.functions.invoke('update-sheet-data', {
+        body: { 
+          rowData: editedData[rowIndex],
+          rowIndex: rowIndex
+        }
+      });
 
-    toast({
-      title: "Changes saved",
-      description: "Row has been updated successfully.",
-    });
+      if (error) throw error;
+
+      // Update local data on successful save
+      setSheetData(prev => prev.map((row, index) => 
+        index === rowIndex ? updatedData : row
+      ));
+      
+      // Remove from editing set
+      setEditingRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(rowIndex);
+        return newSet;
+      });
+      
+      // Clear edited data for this row
+      setEditedData(prev => {
+        const newData = { ...prev };
+        delete newData[rowIndex];
+        return newData;
+      });
+
+      toast({
+        title: "Success",
+        description: "Row updated successfully in Google Sheets",
+      });
+    } catch (error: any) {
+      console.error('Error saving to Google Sheets:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save changes to Google Sheets",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCancel = (rowIndex: number) => {
@@ -158,34 +187,41 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Sorting logic
-  const sortedData = [...sheetData].sort((a, b) => {
-    let aValue: string | number;
-    let bValue: string | number;
-    
-    switch (sortBy) {
-      case 'date':
-        aValue = new Date(a.date || '').getTime() || 0;
-        bValue = new Date(b.date || '').getTime() || 0;
-        break;
-      case 'status':
-        aValue = a.Status || '';
-        bValue = b.Status || '';
-        break;
-      case 'client':
-        aValue = a['CLIENT NAME'] || '';
-        bValue = b['CLIENT NAME'] || '';
-        break;
-      default:
-        return 0;
+  // Sorting logic - disable sorting when editing to prevent confusion
+  const sortedData = React.useMemo(() => {
+    if (editingRows.size > 0) {
+      // Don't sort while editing to prevent row confusion
+      return sheetData;
     }
     
-    if (sortOrder === 'asc') {
-      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-    } else {
-      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-    }
-  });
+    return [...sheetData].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.date || '').getTime() || 0;
+          bValue = new Date(b.date || '').getTime() || 0;
+          break;
+        case 'status':
+          aValue = a.Status || '';
+          bValue = b.Status || '';
+          break;
+        case 'client':
+          aValue = a['CLIENT NAME'] || '';
+          bValue = b['CLIENT NAME'] || '';
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  }, [sheetData, sortBy, sortOrder, editingRows.size]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -355,7 +391,12 @@ export const Dashboard = ({ user }: DashboardProps) => {
                           return (
                             <tr 
                               key={rowIndex} 
-                              className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/30"
+                              className={cn(
+                                "transition-colors duration-200 border-b border-border/30",
+                                isEditing 
+                                  ? "bg-primary/10 border-primary/30 shadow-md ring-2 ring-primary/20" 
+                                  : "hover:bg-muted/30"
+                              )}
                             >
                               {allColumns.map((column) => {
                                 const isEditable = editableColumns.includes(column);
