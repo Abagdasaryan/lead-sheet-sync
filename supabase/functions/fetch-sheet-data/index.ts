@@ -78,12 +78,17 @@ serve(async (req) => {
     console.log('Headers found:', headers);
     console.log('Total rows to process:', rows.length);
 
-    // Find the RepEmail column index
-    const repEmailIndex = headers.findIndex(header => 
-      header.toLowerCase().includes('repemail') || 
-      header.toLowerCase().includes('rep email') ||
-      header.toLowerCase() === 'repemail'
-    );
+    // Find the RepEmail column index - be more flexible with header matching
+    console.log('Looking for RepEmail column in headers:', headers.map((h, i) => `${i}: "${h}"`));
+    const repEmailIndex = headers.findIndex(header => {
+      const lowerHeader = header.toLowerCase().trim();
+      console.log('Checking header:', lowerHeader);
+      return lowerHeader.includes('repemail') || 
+             lowerHeader.includes('rep email') ||
+             lowerHeader.includes('rep_email') ||
+             lowerHeader === 'repemail' ||
+             lowerHeader.includes('email') && lowerHeader.includes('rep');
+    });
 
     if (repEmailIndex === -1) {
       console.log('RepEmail column not found in headers:', headers);
