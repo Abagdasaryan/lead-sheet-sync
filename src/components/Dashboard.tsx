@@ -31,8 +31,9 @@ export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
-  const [editedData, setEditedData] = useState<Record<number, any>>({});
+  // Store row ID for editing rather than index
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editedRowData, setEditedRowData] = useState<any | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
@@ -51,50 +52,37 @@ export const Dashboard = ({ user }: DashboardProps) => {
     });
   };
 
-  const handleEdit = (rowIndex: number) => {
-    setEditingRows(prev => new Set([...prev, rowIndex]));
+  const handleEdit = (rowData: any) => {
+    // Create unique ID using date + client as key to identify the row
+    const rowId = `${rowData.date}-${rowData['CLIENT NAME']}`;
+    setEditingRowId(rowId);
     // Initialize edited data with current row data
-    if (!editedData[rowIndex]) {
-      setEditedData(prev => ({
-        ...prev,
-        [rowIndex]: { ...sheetData[rowIndex] }
-      }));
-    }
+    setEditedRowData({ ...rowData });
   };
 
-  const handleSave = async (rowIndex: number) => {
+  const handleSave = async () => {
+    if (!editingRowId || !editedRowData) return;
+    
     try {
-      // Show loading state
-      const updatedData = { ...sheetData[rowIndex], ...editedData[rowIndex] };
-      
       // Update Google Sheets
       const { data, error } = await supabase.functions.invoke('update-sheet-data', {
         body: { 
-          rowData: editedData[rowIndex],
-          rowIndex: rowIndex
+          rowData: editedRowData,
+          rowIndex: 0 // Not using index-based approach
         }
       });
 
       if (error) throw error;
 
       // Update local data on successful save
-      setSheetData(prev => prev.map((row, index) => 
-        index === rowIndex ? updatedData : row
-      ));
+      setSheetData(prev => prev.map(row => {
+        const rowId = `${row.date}-${row['CLIENT NAME']}`;
+        return rowId === editingRowId ? editedRowData : row;
+      }));
       
-      // Remove from editing set
-      setEditingRows(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(rowIndex);
-        return newSet;
-      });
-      
-      // Clear edited data for this row
-      setEditedData(prev => {
-        const newData = { ...prev };
-        delete newData[rowIndex];
-        return newData;
-      });
+      // Clear editing state
+      setEditingRowId(null);
+      setEditedRowData(null);
 
       toast({
         title: "Success",
@@ -110,29 +98,16 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   };
 
-  const handleCancel = (rowIndex: number) => {
-    // Remove from editing set and discard changes
-    setEditingRows(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(rowIndex);
-      return newSet;
-    });
-    
-    // Remove edited data
-    setEditedData(prev => {
-      const newData = { ...prev };
-      delete newData[rowIndex];
-      return newData;
-    });
+  const handleCancel = () => {
+    // Clear editing state
+    setEditingRowId(null);
+    setEditedRowData(null);
   };
 
-  const handleCellChange = (rowIndex: number, column: string, value: string) => {
-    setEditedData(prev => ({
+  const handleCellChange = (column: string, value: string) => {
+    setEditedRowData(prev => ({
       ...prev,
-      [rowIndex]: {
-        ...prev[rowIndex],
-        [column]: value
-      }
+      [column]: value
     }));
   };
 
@@ -507,115 +482,116 @@ export const Dashboard = ({ user }: DashboardProps) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredAndSortedData.map((row, rowIndex) => {
-                          const isEditing = editingRows.has(rowIndex);
-                          const currentData = isEditing ? { ...row, ...editedData[rowIndex] } : row;
-                          
-                          return (
-                            <tr 
-                              key={rowIndex} 
-                              className={cn(
-                                "transition-colors duration-200 border-b border-border/30",
-                                isEditing 
-                                  ? "bg-primary/10 border-primary/30 shadow-md ring-2 ring-primary/20" 
-                                  : "hover:bg-muted/30"
-                              )}
-                            >
-                              {allColumns.map((column) => {
-                                const isEditable = editableColumns.includes(column);
-                                const cellValue = currentData[column] || '';
-                                
-                                return (
-                                  <td key={column} className="border-r border-border/20 p-4 text-sm">
-                                    {isEditing && isEditable ? (
-                                      <div className="w-full min-w-[120px]">
-                                        {column === 'Status' ? (
-                                          <Select
-                                            value={cellValue}
-                                            onValueChange={(value) => handleCellChange(rowIndex, column, value)}
-                                          >
-                                            <SelectTrigger className="w-full">
-                                              <SelectValue placeholder="Select status" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="Closed - Won">Closed - Won</SelectItem>
-                                              <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        ) : column === 'Last Price' ? (
-                                          <Input
-                                            type="number"
-                                            value={cellValue.toString().replace(/[$,]/g, '')}
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
-                                              handleCellChange(rowIndex, column, formattedValue);
-                                            }}
-                                            className="w-full"
-                                            placeholder="Enter amount"
-                                            step="0.01"
-                                            min="0"
-                                          />
-                                        ) : (
-                                          <Input
-                                            value={cellValue}
-                                            onChange={(e) => handleCellChange(rowIndex, column, e.target.value)}
-                                            className="w-full"
-                                            placeholder={`Enter ${column}`}
-                                          />
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className={cn(
-                                        isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
-                                        column === 'Status' && cellValue && getStatusColor(cellValue),
-                                        "block min-h-[32px] flex items-center"
-                                      )}>
-                                        {column === 'Last Price' && cellValue ? 
-                                          (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
-                                          : cellValue
-                                        }
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                              <td className="border-r border-border/20 p-4 text-sm">
-                                <div className="flex gap-2">
-                                  {isEditing ? (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleSave(rowIndex)}
-                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                      >
-                                        <Save className="h-3 w-3 mr-1" />
-                                        Save
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleCancel(rowIndex)}
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleEdit(rowIndex)}
-                                      className="hover:bg-primary/10 hover:border-primary"
-                                    >
-                                      <Edit className="h-3 w-3 mr-1" />
-                                      Edit
-                                    </Button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                         {filteredAndSortedData.map((row, rowIndex) => {
+                           const rowId = `${row.date}-${row['CLIENT NAME']}`;
+                           const isEditing = editingRowId === rowId;
+                           const currentData = isEditing ? editedRowData : row;
+                           
+                           return (
+                             <tr 
+                               key={rowIndex} 
+                               className={cn(
+                                 "transition-colors duration-200 border-b border-border/30",
+                                 isEditing 
+                                   ? "bg-primary/10 border-primary/30 shadow-md ring-2 ring-primary/20" 
+                                   : "hover:bg-muted/30"
+                               )}
+                             >
+                               {allColumns.map((column) => {
+                                 const isEditable = editableColumns.includes(column);
+                                 const cellValue = currentData[column] || '';
+                                 
+                                 return (
+                                   <td key={column} className="border-r border-border/20 p-4 text-sm">
+                                     {isEditing && isEditable ? (
+                                       <div className="w-full min-w-[120px]">
+                                         {column === 'Status' ? (
+                                           <Select
+                                             value={cellValue}
+                                             onValueChange={(value) => handleCellChange(column, value)}
+                                           >
+                                             <SelectTrigger className="w-full">
+                                               <SelectValue placeholder="Select status" />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="Closed - Won">Closed - Won</SelectItem>
+                                               <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         ) : column === 'Last Price' ? (
+                                           <Input
+                                             type="number"
+                                             value={cellValue.toString().replace(/[$,]/g, '')}
+                                             onChange={(e) => {
+                                               const value = e.target.value;
+                                               const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                               handleCellChange(column, formattedValue);
+                                             }}
+                                             className="w-full"
+                                             placeholder="Enter amount"
+                                             step="0.01"
+                                             min="0"
+                                           />
+                                         ) : (
+                                           <Input
+                                             value={cellValue}
+                                             onChange={(e) => handleCellChange(column, e.target.value)}
+                                             className="w-full"
+                                             placeholder={`Enter ${column}`}
+                                           />
+                                         )}
+                                       </div>
+                                     ) : (
+                                       <span className={cn(
+                                         isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
+                                         column === 'Status' && cellValue && getStatusColor(cellValue),
+                                         "block min-h-[32px] flex items-center"
+                                       )}>
+                                         {column === 'Last Price' && cellValue ? 
+                                           (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
+                                           : cellValue
+                                         }
+                                       </span>
+                                     )}
+                                   </td>
+                                 );
+                               })}
+                               <td className="border-r border-border/20 p-4 text-sm">
+                                 <div className="flex gap-2">
+                                   {isEditing ? (
+                                     <>
+                                       <Button
+                                         size="sm"
+                                         onClick={handleSave}
+                                         className="bg-green-600 hover:bg-green-700 text-white"
+                                       >
+                                         <Save className="h-3 w-3 mr-1" />
+                                         Save
+                                       </Button>
+                                       <Button
+                                         size="sm"
+                                         variant="outline"
+                                         onClick={handleCancel}
+                                       >
+                                         Cancel
+                                       </Button>
+                                     </>
+                                   ) : (
+                                     <Button
+                                       size="sm"
+                                       variant="outline"
+                                       onClick={() => handleEdit(row)}
+                                       className="hover:bg-primary/10 hover:border-primary"
+                                     >
+                                       <Edit className="h-3 w-3 mr-1" />
+                                       Edit
+                                     </Button>
+                                   )}
+                                 </div>
+                               </td>
+                             </tr>
+                           );
+                         })}
                       </tbody>
                     </table>
                   </div>
