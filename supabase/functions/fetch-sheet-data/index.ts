@@ -138,7 +138,8 @@ serve(async (req) => {
       });
       
       // Only filter by email for now - use trimmed comparison
-      if (!repEmail || repEmail.toLowerCase().trim() !== userEmail.toLowerCase().trim()) {
+      const emailMatches = repEmail && repEmail.toLowerCase().trim() === userEmail.toLowerCase().trim();
+      if (!emailMatches) {
         console.log(`Row ${index + 1} email mismatch: "${repEmail}" vs "${userEmail}"`);
         return false;
       }
@@ -149,6 +150,11 @@ serve(async (req) => {
 
     console.log('Final filtered rows count:', filteredRows.length);
     console.log('Filtered rows:', filteredRows);
+    
+    // Log each filtered row with its date to see what we're returning
+    filteredRows.forEach((row, index) => {
+      console.log(`Filtered row ${index + 1} date:`, row[dateColumnIndex]);
+    });
 
     // Define the columns we want to return
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
