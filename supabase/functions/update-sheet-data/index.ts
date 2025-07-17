@@ -33,65 +33,35 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained for Google Sheets update');
 
-    // Update Google Sheets - we need to map the row data to the correct sheet columns
+    // Update Google Sheets directly with known column positions
     const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
     
-    // First, get the current sheet structure to find the correct row
-    const readRange = 'A1:ZZ2000';
-    const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${readRange}`;
-    
-    const readResponse = await fetch(readUrl, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-
-    if (!readResponse.ok) {
-      throw new Error(`Failed to read sheet data: ${readResponse.statusText}`);
-    }
-
-    const readData: GoogleSheetsResponse = await readResponse.json();
-    const headers = readData.values[0];
-    const rows = readData.values.slice(1);
-
-    console.log('Current headers:', headers);
-    
-    // Find the columns we need to update
-    const statusIndex = headers.findIndex(h => h.toLowerCase().includes('status'));
-    const lostReasonIndex = headers.findIndex(h => h.toLowerCase().includes('lost reason'));
-    const lastPriceIndex = headers.findIndex(h => h.toLowerCase().includes('last price'));
-
-    console.log('Column indices:', { statusIndex, lostReasonIndex, lastPriceIndex });
-
     // Calculate the actual row number in the sheet (adding 2 for header + 0-based index)
     const sheetRowNumber = rowIndex + 2;
     
-    // Prepare update requests for each column that needs updating
+    // Known column positions from the working fetch function
+    // Status = Column K (index 10), Lost Reason = Column L (index 11), Last Price = Column M (index 12)
     const updates = [];
     
-    if (rowData.Status && statusIndex >= 0) {
-      const cellRange = `${String.fromCharCode(65 + statusIndex)}${sheetRowNumber}`;
+    if (rowData.Status) {
       updates.push({
-        range: cellRange,
+        range: `K${sheetRowNumber}`, // Status column
         values: [[rowData.Status]]
       });
     }
     
-    if (rowData['Lost Reason'] !== undefined && lostReasonIndex >= 0) {
-      const cellRange = `${String.fromCharCode(65 + lostReasonIndex)}${sheetRowNumber}`;
+    if (rowData['Lost Reason'] !== undefined) {
       updates.push({
-        range: cellRange,
+        range: `L${sheetRowNumber}`, // Lost Reason column
         values: [[rowData['Lost Reason'] || '']]
       });
     }
     
-    if (rowData['Last Price'] !== undefined && lastPriceIndex >= 0) {
-      const cellRange = `${String.fromCharCode(65 + lastPriceIndex)}${sheetRowNumber}`;
+    if (rowData['Last Price'] !== undefined) {
       // Remove $ and commas for storage
       const priceValue = rowData['Last Price'].toString().replace(/[$,]/g, '');
       updates.push({
-        range: cellRange,
+        range: `M${sheetRowNumber}`, // Last Price column
         values: [[priceValue]]
       });
     }
