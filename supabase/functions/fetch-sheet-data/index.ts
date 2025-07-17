@@ -34,10 +34,13 @@ serve(async (req) => {
     const jwt = await generateJWT(serviceAccount);
     console.log('JWT generated successfully, getting access token...');
     const accessToken = await getAccessToken(jwt);
+    console.log('Access token obtained, length:', accessToken.length);
 
     // Using the provided sandbox Google Sheet
     const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
-    const range = 'Sheet1!A:Z'; // Adjust range as needed
+    const range = 'Sheet1!A1:Z1000'; // More specific range
+    console.log('Spreadsheet ID:', spreadsheetId);
+    console.log('Range:', range);
 
     // Fetch data from Google Sheets
     const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
@@ -218,6 +221,7 @@ async function generateJWT(serviceAccount: any): Promise<string> {
 }
 
 async function getAccessToken(jwt: string): Promise<string> {
+  console.log('Requesting access token...');
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
@@ -229,10 +233,15 @@ async function getAccessToken(jwt: string): Promise<string> {
     }),
   });
 
+  console.log('Access token response status:', response.status);
+
   if (!response.ok) {
-    throw new Error(`Failed to get access token: ${response.statusText}`);
+    const errorText = await response.text();
+    console.log('Access token error response:', errorText);
+    throw new Error(`Failed to get access token: ${response.status} ${response.statusText} - ${errorText}`);
   }
 
   const data = await response.json();
+  console.log('Access token received successfully');
   return data.access_token;
 }
