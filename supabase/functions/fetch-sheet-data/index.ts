@@ -112,49 +112,55 @@ serve(async (req) => {
       });
     });
 
-    // Filter rows by user email (debugging email matching)
-    console.log('Filtering with userEmail:', userEmail);
-    console.log('Total rows to check:', rows.length);
+    // Debug: Show first 10 rows and all unique emails
+    console.log('=== DEBUGGING SHEET DATA ===');
+    console.log('Total rows in sheet:', rows.length);
+    console.log('Headers:', headers);
+    console.log('RepEmail column index:', repEmailIndex);
+    console.log('Date column index:', dateColumnIndex);
     
-    // First, let's see all unique email addresses in the RepEmail column
+    // Show first 10 rows
+    console.log('First 10 rows:');
+    rows.slice(0, 10).forEach((row, index) => {
+      console.log(`Row ${index + 1}:`, {
+        repEmail: row[repEmailIndex],
+        date: row[dateColumnIndex],
+        clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1],
+        status: row[headers.findIndex(h => h.toLowerCase().includes('status'))] || 'N/A'
+      });
+    });
+
+    // Show all unique emails
     const allEmails = rows.map(row => row[repEmailIndex]).filter(email => email && email.trim());
     const uniqueEmails = [...new Set(allEmails)];
     console.log('All unique emails in RepEmail column:', uniqueEmails);
-    console.log('RepEmail column index:', repEmailIndex);
     console.log('User email to match:', userEmail);
-    console.log('Looking for exact match with: abgutterinstall@gmail.com');
     console.log('Does the sheet contain abgutterinstall@gmail.com?', uniqueEmails.includes('abgutterinstall@gmail.com'));
+    
+    // Count rows per email
+    const emailCounts = {};
+    allEmails.forEach(email => {
+      emailCounts[email] = (emailCounts[email] || 0) + 1;
+    });
+    console.log('Email counts:', emailCounts);
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
-      const rowDate = row[dateColumnIndex];
-      
-      console.log(`Checking row ${index + 1}:`, {
-        repEmail: repEmail,
-        rowDate: rowDate,
-        repEmailTrimmed: repEmail?.trim(),
-        userEmailTrimmed: userEmail.trim(),
-        emailMatch: repEmail?.toLowerCase().trim() === userEmail.toLowerCase().trim()
-      });
-      
-      // Only filter by email for now - use trimmed comparison
       const emailMatches = repEmail && repEmail.toLowerCase().trim() === userEmail.toLowerCase().trim();
-      if (!emailMatches) {
-        console.log(`Row ${index + 1} email mismatch: "${repEmail}" vs "${userEmail}"`);
-        return false;
+      
+      if (emailMatches) {
+        console.log(`MATCH found at row ${index + 1}:`, {
+          repEmail: repEmail,
+          date: row[dateColumnIndex],
+          clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1]
+        });
       }
-
-      console.log(`Row ${index + 1} matches email - including`);
-      return true;
+      
+      return emailMatches;
     });
 
     console.log('Final filtered rows count:', filteredRows.length);
-    console.log('Filtered rows:', filteredRows);
-    
-    // Log each filtered row with its date to see what we're returning
-    filteredRows.forEach((row, index) => {
-      console.log(`Filtered row ${index + 1} date:`, row[dateColumnIndex]);
-    });
+    console.log('=== END DEBUGGING ===');
 
     // Define the columns we want to return
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
