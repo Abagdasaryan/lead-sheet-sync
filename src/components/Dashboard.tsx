@@ -31,8 +31,6 @@ export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [aliasInput, setAliasInput] = useState("");
-  const [editingAlias, setEditingAlias] = useState(false);
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
   const [editedData, setEditedData] = useState<Record<number, any>>({});
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
@@ -117,34 +115,8 @@ export const Dashboard = ({ user }: DashboardProps) => {
 
       if (error) throw error;
       setProfile(data);
-      setAliasInput(data.rep_alias || '');
     } catch (error: any) {
       console.error('Error fetching profile:', error);
-    }
-  };
-
-  const saveAlias = async () => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ rep_alias: aliasInput || null })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setProfile(prev => prev ? { ...prev, rep_alias: aliasInput } : null);
-      setEditingAlias(false);
-      
-      toast({
-        title: "Alias saved",
-        description: "Your sheet alias has been updated.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     }
   };
 
@@ -288,67 +260,6 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                   {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Alias Management Section */}
-        <div className="animate-slide-up" style={{ animationDelay: "0.15s" }}>
-          <Card className="shadow-elegant border-border/50 bg-gradient-to-r from-card to-card/80">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserIcon className="h-5 w-5 text-primary" />
-                Sheet Alias Settings
-              </CardTitle>
-              <CardDescription>
-                Set your alias to match what's in the RepEmail column of the spreadsheet
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row items-end gap-4">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="alias">Sheet Alias</Label>
-                  <Input
-                    id="alias"
-                    placeholder="e.g. abgutterinstall, john.doe, etc."
-                    value={aliasInput}
-                    onChange={(e) => setAliasInput(e.target.value)}
-                    disabled={!editingAlias && !aliasInput}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Current: {profile?.rep_alias || 'None set (using email)'}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {editingAlias ? (
-                    <>
-                      <Button onClick={saveAlias} size="sm">
-                        <Save className="h-4 w-4 mr-1" />
-                        Save
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          setEditingAlias(false);
-                          setAliasInput(profile?.rep_alias || '');
-                        }}
-                        size="sm"
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      onClick={() => setEditingAlias(true)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      {profile?.rep_alias ? 'Edit' : 'Set'} Alias
-                    </Button>
-                  )}
-                </div>
               </div>
             </CardContent>
           </Card>
