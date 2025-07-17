@@ -33,8 +33,8 @@ serve(async (req) => {
     const jwt = await generateJWT(serviceAccount);
     const accessToken = await getAccessToken(jwt);
 
-    // Replace with your actual Google Sheet ID and range
-    const spreadsheetId = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms'; // Example Sheet ID - replace with yours
+    // Using the provided sandbox Google Sheet
+    const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
     const range = 'Sheet1!A:Z'; // Adjust range as needed
 
     // Fetch data from Google Sheets
