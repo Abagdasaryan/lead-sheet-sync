@@ -122,6 +122,8 @@ serve(async (req) => {
     console.log('All unique emails in RepEmail column:', uniqueEmails);
     console.log('RepEmail column index:', repEmailIndex);
     console.log('User email to match:', userEmail);
+    console.log('Looking for exact match with: abgutterinstall@gmail.com');
+    console.log('Does the sheet contain abgutterinstall@gmail.com?', uniqueEmails.includes('abgutterinstall@gmail.com'));
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
