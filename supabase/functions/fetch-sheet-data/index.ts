@@ -17,8 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    const { userEmail } = await req.json();
-    console.log('Fetching data for user email:', userEmail);
+    const { userEmail, filterDate } = await req.json();
+    console.log('Fetching data for user email:', userEmail, 'filterDate:', filterDate);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -78,10 +78,52 @@ serve(async (req) => {
 
     console.log('RepEmail column found at index:', repEmailIndex);
 
-    // Filter rows by user email
+    // Find date column index (look for common date column names)
+    const dateColumnIndex = headers.findIndex(header => 
+      header.toLowerCase().includes('date') || 
+      header.toLowerCase().includes('created') ||
+      header.toLowerCase().includes('timestamp') ||
+      header.toLowerCase().includes('time')
+    );
+
+    console.log('Date column found at index:', dateColumnIndex);
+
+    // Filter rows by user email and optionally by date
     const filteredRows = rows.filter(row => {
       const repEmail = row[repEmailIndex];
-      return repEmail && repEmail.toLowerCase() === userEmail.toLowerCase();
+      
+      // First filter by email
+      if (!repEmail || repEmail.toLowerCase() !== userEmail.toLowerCase()) {
+        return false;
+      }
+
+      // If no date filter is specified, return the row
+      if (!filterDate) {
+        return true;
+      }
+
+      // If date filter is specified but no date column found, return the row
+      if (dateColumnIndex === -1) {
+        return true;
+      }
+
+      // Check if the row's date matches the filter date
+      const rowDate = row[dateColumnIndex];
+      if (!rowDate) {
+        return false;
+      }
+
+      // Try to parse the date and compare
+      try {
+        const parsedRowDate = new Date(rowDate);
+        const filterDateObj = new Date(filterDate);
+        
+        // Compare dates (ignore time)
+        return parsedRowDate.toDateString() === filterDateObj.toDateString();
+      } catch (error) {
+        console.log('Error parsing date:', rowDate, error);
+        return false;
+      }
     });
 
     console.log('Filtered rows for user:', filteredRows.length);

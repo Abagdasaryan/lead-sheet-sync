@@ -4,6 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface DashboardProps {
   user: User;
@@ -12,6 +17,7 @@ interface DashboardProps {
 export const Dashboard = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -26,7 +32,10 @@ export const Dashboard = ({ user }: DashboardProps) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
-        body: { userEmail: user.email }
+        body: { 
+          userEmail: user.email,
+          filterDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined
+        }
       });
 
       if (error) throw error;
@@ -34,7 +43,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
       setSheetData(data.rows || []);
       toast({
         title: "Data loaded",
-        description: `Found ${data.rows?.length || 0} rows for your email.`,
+        description: `Found ${data.rows?.length || 0} rows${selectedDate ? ` for ${format(selectedDate, 'PPP')}` : ''}.`,
       });
     } catch (error: any) {
       toast({
@@ -49,7 +58,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
 
   useEffect(() => {
     fetchSheetData();
-  }, []);
+  }, [selectedDate]);
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -69,11 +78,48 @@ export const Dashboard = ({ user }: DashboardProps) => {
           </div>
         </div>
 
+        <div className="mb-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-[240px] justify-start text-left font-normal",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date to filter</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          {selectedDate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedDate(undefined)}
+              className="ml-2"
+            >
+              Clear filter
+            </Button>
+          )}
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Your Sheet Data</CardTitle>
             <CardDescription>
               Data filtered for your email: {user.email}
+              {selectedDate && ` • Date: ${format(selectedDate, 'PPP')}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
