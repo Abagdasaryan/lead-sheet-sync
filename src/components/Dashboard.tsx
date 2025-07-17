@@ -189,7 +189,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Filter by date range and sort data
+  // Filter by date range and sort data - always maintain consistent order
   const filteredAndSortedData = React.useMemo(() => {
     // Apply date filters if selected
     let filteredData = [...sheetData];
@@ -220,12 +220,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
       });
     }
     
-    // Don't sort while editing to prevent row confusion
-    if (editingRows.size > 0) {
-      return filteredData;
-    }
-    
-    // Sort the filtered data
+    // Always apply sorting to maintain consistent row indices
     return filteredData.sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
@@ -253,7 +248,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
       }
     });
-  }, [sheetData, sortBy, sortOrder, editingRows.size, startDate, endDate]);
+  }, [sheetData, sortBy, sortOrder, startDate, endDate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
