@@ -107,7 +107,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
       setSheetData(data.rows || []);
       toast({
         title: "Data loaded",
-        description: `Found ${data.rows?.length || 0} rows from the last 3 days.`,
+        description: `Found ${data.rows?.length || 0} rows from the last 7 days.`,
       });
     } catch (error: any) {
       toast({
@@ -161,7 +161,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Analytics Dashboard
+                APGS Sales Rep Dashboard
               </h1>
               <p className="text-muted-foreground text-lg">
                 Welcome back, <span className="text-foreground font-medium">{user.email}</span>
@@ -202,7 +202,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                 <ArrowUpDown className="h-5 w-5 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription>Sort your data (showing last 3 days)</CardDescription>
+              <CardDescription>Sort your data (showing last 7 days)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
@@ -241,7 +241,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">{sheetData.length}</div>
               <p className="text-xs text-muted-foreground">
-                from last 3 days
+                from last 7 days
               </p>
             </CardContent>
           </Card>
@@ -284,7 +284,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               <CardDescription>
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                  Last 3 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                  Last 7 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
                 </span>
               </CardDescription>
             </CardHeader>
@@ -294,7 +294,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    No records found for your email in the last 3 days
+                    No records found for your email in the last 7 days
                   </p>
                 </div>
               ) : (
