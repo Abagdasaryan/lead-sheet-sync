@@ -144,53 +144,65 @@ serve(async (req) => {
     });
     console.log('Email counts:', emailCounts);
     
-    // ALIAS-BASED FILTERING SYSTEM
-    console.log('=== ALIAS-BASED FILTERING ===');
-    
-    // Use alias if provided, otherwise fallback to email matching
-    const matchValue = userAlias || userEmail;
-    console.log('Matching with:', matchValue, '(type:', userAlias ? 'alias' : 'email', ')');
+    // SIMPLIFIED ROBUST FILTERING SYSTEM
+    console.log('=== FILTERING DEBUG ===');
+    console.log('userEmail:', userEmail);
+    console.log('userAlias:', userAlias);
     
     const normalizeValue = (value) => {
       if (!value) return '';
       return value.toLowerCase().trim().replace(/\s+/g, '');
     };
     
-    const matchValueNormalized = normalizeValue(matchValue);
+    // Priority: alias > email without domain > full email > contains match
+    const filterValue = userAlias || userEmail;
+    const filterValueNormalized = normalizeValue(filterValue);
+    const emailWithoutDomain = userEmail ? normalizeValue(userEmail.split('@')[0]) : '';
+    
+    console.log('Filter value:', filterValue);
+    console.log('Email without domain:', emailWithoutDomain);
     
     const filteredRows = rows.filter((row, index) => {
       const repEmail = row[repEmailIndex];
       const repEmailNormalized = normalizeValue(repEmail);
       
-      // For alias matching, do exact match. For email, do fuzzy matching
-      let isMatch;
+      let isMatch = false;
+      let matchType = '';
+      
       if (userAlias) {
         // Exact alias matching
-        isMatch = repEmailNormalized === matchValueNormalized;
+        isMatch = repEmailNormalized === filterValueNormalized;
+        matchType = 'alias-exact';
       } else {
-        // Fuzzy email matching (keep old logic as fallback)
-        const exactMatch = repEmailNormalized === matchValueNormalized;
-        const withoutDomain = matchValueNormalized.split('@')[0];
-        const withoutDomainMatch = repEmailNormalized === withoutDomain || 
-                                  repEmailNormalized === withoutDomain + '@gmail.com';
-        const containsMatch = repEmailNormalized.includes(withoutDomain);
-        isMatch = exactMatch || withoutDomainMatch || containsMatch;
+        // Multiple email matching strategies
+        if (repEmailNormalized === filterValueNormalized) {
+          isMatch = true;
+          matchType = 'email-exact';
+        } else if (repEmailNormalized === emailWithoutDomain) {
+          isMatch = true;
+          matchType = 'email-without-domain';
+        } else if (repEmailNormalized.includes(emailWithoutDomain) && emailWithoutDomain.length > 2) {
+          isMatch = true;
+          matchType = 'email-contains';
+        }
       }
       
       if (isMatch) {
-        console.log(`MATCH found at row ${index + 1}:`, {
-          original: repEmail,
+        console.log(`✓ MATCH found at row ${index + 1}:`, {
+          repEmail: repEmail,
           normalized: repEmailNormalized,
-          matchType: userAlias ? 'alias' : 'email',
+          matchType: matchType,
           date: row[dateColumnIndex],
-          clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1]
+          client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A'
         });
       }
       
       return isMatch;
     });
 
+    console.log('Total rows checked:', rows.length);
     console.log('Filtered rows count:', filteredRows.length);
+    console.log('=== END FILTERING DEBUG ===');
 
     // Define the columns we want to return
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
