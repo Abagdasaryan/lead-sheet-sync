@@ -33,6 +33,8 @@ export const Dashboard = ({ user }: DashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
   const [editedData, setEditedData] = useState<Record<number, any>>({});
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
@@ -187,14 +189,44 @@ export const Dashboard = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Sort data - disable sorting when editing to prevent confusion
-  const sortedData = React.useMemo(() => {
-    if (editingRows.size > 0) {
-      // Don't sort while editing to prevent row confusion
-      return sheetData;
+  // Filter by date range and sort data
+  const filteredAndSortedData = React.useMemo(() => {
+    // Apply date filters if selected
+    let filteredData = [...sheetData];
+    
+    if (startDate || endDate) {
+      filteredData = filteredData.filter(row => {
+        // Parse the date from the row (expected format like "7/7/2025")
+        const rowDateStr = row.date;
+        if (!rowDateStr) return false;
+        
+        // Try to parse the date in MM/DD/YYYY format
+        const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
+        if (!month || !day || !year) return false;
+        
+        const rowDate = new Date(year, month - 1, day); // Month is 0-indexed in JS Date
+        
+        // Apply start date filter
+        if (startDate && rowDate < new Date(startDate.setHours(0, 0, 0, 0))) {
+          return false;
+        }
+        
+        // Apply end date filter
+        if (endDate && rowDate > new Date(endDate.setHours(23, 59, 59, 999))) {
+          return false;
+        }
+        
+        return true;
+      });
     }
     
-    return [...sheetData].sort((a, b) => {
+    // Don't sort while editing to prevent row confusion
+    if (editingRows.size > 0) {
+      return filteredData;
+    }
+    
+    // Sort the filtered data
+    return filteredData.sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
       
@@ -221,7 +253,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
       }
     });
-  }, [sheetData, sortBy, sortOrder, editingRows.size]);
+  }, [sheetData, sortBy, sortOrder, editingRows.size, startDate, endDate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -272,10 +304,86 @@ export const Dashboard = ({ user }: DashboardProps) => {
                 <ArrowUpDown className="h-5 w-5 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription>Sort your data</CardDescription>
+              <CardDescription>Sort and filter your data</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
+                {/* Date Range Filter */}
+                <div className="flex flex-wrap gap-2 items-center mb-4">
+                  <div className="flex flex-col">
+                    <Label htmlFor="start-date" className="mb-1 text-sm">From Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="start-date"
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "w-[150px] justify-start text-left",
+                            !startDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "MM/dd/yyyy") : <span>Start date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <Label htmlFor="end-date" className="mb-1 text-sm">To Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="end-date"
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "w-[150px] justify-start text-left",
+                            !endDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "MM/dd/yyyy") : <span>End date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setStartDate(undefined);
+                        setEndDate(undefined);
+                      }}
+                      className="mb-1 hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4 mr-1" /> Clear
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Sorting Options */}
                 <Select value={sortBy} onValueChange={(value: 'date' | 'status' | 'client') => setSortBy(value)}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Sort by" />
@@ -309,7 +417,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               <TrendingUp className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">{sortedData.length}</div>
+              <div className="text-2xl font-bold text-primary">{filteredAndSortedData.length}</div>
               <p className="text-xs text-muted-foreground">
                 total records
               </p>
@@ -359,7 +467,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {sortedData.length === 0 ? (
+              {filteredAndSortedData.length === 0 ? (
                 <div className="text-center py-12">
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
@@ -384,7 +492,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedData.map((row, rowIndex) => {
+                        {filteredAndSortedData.map((row, rowIndex) => {
                           const isEditing = editingRows.has(rowIndex);
                           const currentData = isEditing ? { ...row, ...editedData[rowIndex] } : row;
                           
