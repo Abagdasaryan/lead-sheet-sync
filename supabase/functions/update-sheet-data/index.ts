@@ -33,101 +33,89 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained for Google Sheets update');
 
-    // Update Google Sheets directly with known column positions
+    // Update Google Sheets - using a simpler single cell update approach
     const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
     
     // Calculate the actual row number in the sheet (adding 2 for header + 0-based index)
     const sheetRowNumber = rowIndex + 2;
+    console.log('Updating row number:', sheetRowNumber);
     
-    // Known column positions from the working fetch function
-    // Status = Column K (index 10), Lost Reason = Column L (index 11), Last Price = Column M (index 12)
+    // Update each field individually using the column letters from the headers we know:
+    // From the working function, we know: Status=K(10), Lost Reason=L(11), Last Price=M(12)
     const updates = [];
     
     if (rowData.Status) {
+      console.log('Adding Status update:', rowData.Status);
       updates.push({
-        range: `K${sheetRowNumber}`, // Status column
+        range: `Status!K${sheetRowNumber}`,
         values: [[rowData.Status]]
       });
     }
     
     if (rowData['Lost Reason'] !== undefined) {
+      console.log('Adding Lost Reason update:', rowData['Lost Reason']);
       updates.push({
-        range: `L${sheetRowNumber}`, // Lost Reason column
+        range: `Lost Reason!L${sheetRowNumber}`,
         values: [[rowData['Lost Reason'] || '']]
       });
     }
     
     if (rowData['Last Price'] !== undefined) {
-      // Remove $ and commas for storage
       const priceValue = rowData['Last Price'].toString().replace(/[$,]/g, '');
+      console.log('Adding Last Price update:', priceValue);
       updates.push({
-        range: `M${sheetRowNumber}`, // Last Price column
+        range: `Last Price!M${sheetRowNumber}`,
         values: [[priceValue]]
       });
     }
 
-    console.log('Preparing to update cells:', updates);
+    console.log('Total updates to make:', updates.length);
 
-    // Perform batch update
-    if (updates.length > 0) {
-      const batchUpdateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
-      
-      const batchUpdateResponse = await fetch(batchUpdateUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          valueInputOption: 'USER_ENTERED',
-          data: updates
-        })
-      });
-
-      if (!batchUpdateResponse.ok) {
-        const errorText = await batchUpdateResponse.text();
-        console.error('Batch update failed:', {
-          status: batchUpdateResponse.status,
-          statusText: batchUpdateResponse.statusText,
-          errorText: errorText
-        });
+    // Use individual cell updates instead of batch update
+    let successCount = 0;
+    for (const update of updates) {
+      try {
+        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${update.range}?valueInputOption=USER_ENTERED`;
         
-        return new Response(
-          JSON.stringify({ 
-            error: `Failed to update sheet: ${batchUpdateResponse.status} ${batchUpdateResponse.statusText}`,
-            details: errorText
-          }),
-          { 
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
+        console.log('Updating cell:', update.range, 'with value:', update.values[0][0]);
+        
+        const cellUpdateResponse = await fetch(updateUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            values: update.values
+          })
+        });
+
+        if (!cellUpdateResponse.ok) {
+          const errorText = await cellUpdateResponse.text();
+          console.error('Cell update failed for', update.range, ':', {
+            status: cellUpdateResponse.status,
+            statusText: cellUpdateResponse.statusText,
+            errorText: errorText
+          });
+        } else {
+          successCount++;
+          console.log('Successfully updated:', update.range);
+        }
+      } catch (error) {
+        console.error('Error updating cell', update.range, ':', error);
       }
-
-      const updateResult = await batchUpdateResponse.json();
-      console.log('Sheet update successful:', updateResult);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Sheet updated successfully',
-          updatedCells: updates.length 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    } else {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'No updates needed' 
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
     }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: `Updated ${successCount} of ${updates.length} fields`,
+        updatedCells: successCount 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
 
   } catch (error) {
     console.error('Error updating sheet:', error);
