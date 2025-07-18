@@ -84,19 +84,28 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       if (error) throw error;
 
       const jobsData = data?.rows || [];
+      console.log('Raw data from backend:', data);
       console.log('Jobs sold data received:', jobsData);
       
-      // Map the sheet data to Job format
-      const mappedJobs: Job[] = jobsData.map((row: any, index: number) => ({
-        id: `job-${index}`,
-        client: row.client || '',
-        jobNumber: row.jobNumber || '',
-        rep: row.rep || '',
-        leadSoldFor: row.leadSoldFor || 0,
-        paymentType: row.paymentType || '',
-        installDate: row.installDate || '',
-        sfOrderId: row.sfOrderId || ''
-      }));
+      // Map the sheet data to Job format - fixing field mapping
+      const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
+        // Parse the Last Price field to get numeric value
+        const priceString = row['Last Price'] || '0';
+        const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
+        
+        return {
+          id: `job-${index}`,
+          client: row['CLIENT NAME'] || '',
+          jobNumber: row['AppointmentName'] || '',
+          rep: profile.rep_alias || '',
+          leadSoldFor: priceValue,
+          paymentType: row['Status'] || '',
+          installDate: row['date'] || '',
+          sfOrderId: row['sfOrderId'] || ''
+        };
+      });
+      
+      console.log('Mapped jobs:', mappedJobs);
       
       setJobs(mappedJobs);
       toast({
@@ -118,12 +127,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   useEffect(() => {
     fetchProfile();
   }, [user.id]);
-
-  useEffect(() => {
-    if (profile) {
-      fetchJobsData();
-    }
-  }, [profile]);
 
   const fetchProducts = async () => {
     try {
@@ -315,10 +318,16 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
               Manage completed and in-progress jobs
             </p>
           </div>
-          <Button onClick={handleRefresh} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={fetchJobsData} disabled={loading || !profile?.rep_alias}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Fetch Jobs Data
+            </Button>
+            <Button onClick={handleRefresh} disabled={loading} variant="outline">
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Products
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
