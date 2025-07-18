@@ -68,6 +68,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           description: "Rep alias not found in profile. Please update your profile with your rep slug.",
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
