@@ -38,7 +38,7 @@ serve(async (req) => {
 
     // Using the production Google Sheet
     const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
-    const range = 'A1:ZZ2000'; // Extended range to capture more data
+    const range = 'A1:ZZ8000'; // Extended range to capture more data
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
 
