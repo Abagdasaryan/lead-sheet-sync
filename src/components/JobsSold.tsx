@@ -7,8 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, ArrowUpDown, Edit, Save, X, Plus, Trash2 } from "lucide-react";
-import { Job, JobLineItem } from "@/types/products";
-import { PRODUCTS } from "@/data/products";
+import { Job, JobLineItem, Product } from "@/types/products";
+import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -18,6 +18,7 @@ interface JobsSoldProps {
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [editedJobData, setEditedJobData] = useState<Job | null>(null);
@@ -49,13 +50,35 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   ];
 
+  // Fetch products from Supabase
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load products.",
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
+    fetchProducts();
     setJobs(mockJobs);
   }, []);
 
   const handleRefresh = async () => {
     setLoading(true);
     // TODO: Replace with actual sheet data fetch
+    fetchProducts(); // Refresh products as well
     setTimeout(() => {
       setJobs(mockJobs);
       setLoading(false);
@@ -134,11 +157,11 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
     if (field === 'productId') {
-      const product = PRODUCTS.find(p => p.id === value);
+      const product = products.find(p => p.id === value);
       if (product) {
         updatedItems[index].productName = product.name;
-        updatedItems[index].unitPrice = product.unitPrice;
-        updatedItems[index].total = updatedItems[index].quantity * product.unitPrice;
+        updatedItems[index].unitPrice = product.unit_price;
+        updatedItems[index].total = updatedItems[index].quantity * product.unit_price;
       }
     } else if (field === 'quantity') {
       updatedItems[index].total = value * updatedItems[index].unitPrice;
@@ -535,9 +558,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {PRODUCTS.map((product) => (
+                            {products.map((product) => (
                               <SelectItem key={product.id} value={product.id}>
-                                {product.name} (${product.unitPrice})
+                                {product.name} (${product.unit_price})
                               </SelectItem>
                             ))}
                           </SelectContent>

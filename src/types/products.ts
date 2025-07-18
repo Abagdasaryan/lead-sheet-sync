@@ -1,9 +1,11 @@
 export interface Product {
   id: string;
-  product2Id: string;
+  product2_id: string;
   name: string;
-  unitPrice: number;
-  pricebook2Id: string;
+  unit_price: number;
+  pricebook2_id: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface JobLineItem {
