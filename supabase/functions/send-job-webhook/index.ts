@@ -102,14 +102,48 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Prepare webhook payload
-    const payload = {
-      jobData,
-      lineItems: lineItems || [],
-      timestamp: new Date().toISOString(),
-      source: 'lovable-jobs-sold',
-      supabaseJobId: savedJob.id
-    };
+    // Fetch product details for line items
+    let transformedLineItems = [];
+    if (lineItems && lineItems.length > 0) {
+      const productIds = lineItems.map((item: any) => item.productId);
+      
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, product2_id, pricebook2_id, unit_price')
+        .in('id', productIds);
+
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        // Continue with basic structure if product fetch fails
+        transformedLineItems = lineItems.map((item: any) => ({
+          OrderId: jobData.sfOrderId,
+          Product2Id: item.productId,
+          Quantity: item.quantity,
+          UnitPrice: item.unitPrice,
+          PricebookEntryId: null
+        }));
+      } else {
+        // Create a map for quick product lookup
+        const productMap = products.reduce((map: any, product: any) => {
+          map[product.id] = product;
+          return map;
+        }, {});
+
+        transformedLineItems = lineItems.map((item: any) => {
+          const product = productMap[item.productId];
+          return {
+            OrderId: jobData.sfOrderId,
+            Product2Id: product?.product2_id || item.productId,
+            Quantity: item.quantity,
+            UnitPrice: product?.unit_price || item.unitPrice,
+            PricebookEntryId: product?.pricebook2_id || null
+          };
+        });
+      }
+    }
+
+    // Prepare webhook payload with new schema
+    const payload = transformedLineItems;
 
     console.log('Sending webhook to n8n:', webhookUrl);
     console.log('Payload:', JSON.stringify(payload, null, 2));
