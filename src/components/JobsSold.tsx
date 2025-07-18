@@ -42,7 +42,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const { toast } = useToast();
 
   // Production webhook URL
-  const PRODUCTION_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b';
+  const PRODUCTION_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
 
   const fetchProfile = async () => {
     try {
