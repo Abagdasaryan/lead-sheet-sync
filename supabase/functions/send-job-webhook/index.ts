@@ -149,20 +149,31 @@ Deno.serve(async (req) => {
     console.log('Payload:', JSON.stringify(payload, null, 2));
 
     // Send webhook to n8n
-    const webhookResponse = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!webhookResponse.ok) {
-      throw new Error(`Webhook failed with status: ${webhookResponse.status}`);
+    let webhookResponse;
+    let responseData = '';
+    
+    try {
+      console.log('About to send webhook request to:', webhookUrl);
+      webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      console.log('Webhook response status:', webhookResponse.status);
+      responseData = await webhookResponse.text();
+      console.log('n8n webhook response:', responseData);
+      
+      if (!webhookResponse.ok) {
+        console.error(`Webhook failed with status: ${webhookResponse.status}, response: ${responseData}`);
+        // Don't throw error, just log it and continue
+      }
+    } catch (fetchError) {
+      console.error('Error sending webhook:', fetchError);
+      responseData = `Failed to send webhook: ${fetchError.message}`;
     }
-
-    const responseData = await webhookResponse.text();
-    console.log('n8n webhook response:', responseData);
 
     return new Response(
       JSON.stringify({ 
