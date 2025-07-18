@@ -27,7 +27,7 @@ interface Profile {
   updated_at: string;
 }
 
-export const Dashboard = ({ user }: DashboardProps) => {
+export const Leads = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { Dashboard } from "@/components/Dashboard";
+import { MainDashboard } from "@/components/MainDashboard";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -53,7 +53,7 @@ const Index = () => {
   }
 
   if (user) {
-    return <Dashboard user={user} />;
+    return <MainDashboard user={user} />;
   }
 
   return (
