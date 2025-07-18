@@ -120,7 +120,9 @@ Deno.serve(async (req) => {
           Product2Id: item.productId,
           Quantity: item.quantity,
           UnitPrice: item.unitPrice,
-          PricebookEntryId: null
+          PricebookEntryId: null,
+          installDate: jobData.installDate,
+          jobNumber: jobData.jobNumber
         }));
       } else {
         // Create a map for quick product lookup
@@ -136,18 +138,16 @@ Deno.serve(async (req) => {
             Product2Id: product?.product2_id || item.productId,
             Quantity: item.quantity,
             UnitPrice: product?.unit_price || item.unitPrice,
-            PricebookEntryId: product?.pricebook2_id || null
+            PricebookEntryId: product?.pricebook2_id || null,
+            installDate: jobData.installDate,
+            jobNumber: jobData.jobNumber
           };
         });
       }
     }
 
-    // Prepare webhook payload with job header data and line items
-    const payload = {
-      installDate: jobData.installDate,
-      jobNumber: jobData.jobNumber,
-      lineItems: transformedLineItems
-    };
+    // Prepare webhook payload - now just the line items array with embedded data
+    const payload = transformedLineItems;
 
     console.log('Sending webhook to n8n:', webhookUrl);
     console.log('Payload:', JSON.stringify(payload, null, 2));
