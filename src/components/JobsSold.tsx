@@ -110,14 +110,16 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('Jobs data length:', jobsData.length);
       console.log('Jobs data type:', typeof jobsData);
       
-      // Map the sheet data to Job format based on sheet type
-      const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
+      // Map the sheet data to Job format and check for saved line items
+      const mappedJobs: Job[] = await Promise.all(jobsData.map(async (row: any, index: number) => {
         console.log('Processing row:', index, row);
+        
+        let mappedJob: Job;
         
         // For jobs-sold sheet, data comes with mapped column names
         if (row.install_date) {
           // Jobs sold data structure
-          const mappedJob = {
+          mappedJob = {
             id: `job-${index}`,
             client: row.client || '',
             jobNumber: row.job_number || '',
@@ -129,13 +131,12 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           };
           
           console.log('Mapped job (jobs-sold):', mappedJob);
-          return mappedJob;
         } else {
           // Leads data structure (fallback)
           const priceString = row['Last Price'] || '0';
           const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
           
-          const mappedJob = {
+          mappedJob = {
             id: `job-${index}`,
             client: row['CLIENT NAME'] || '',
             jobNumber: row['AppointmentName'] || '',
@@ -147,9 +148,54 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           };
           
           console.log('Mapped job (leads fallback):', mappedJob);
-          return mappedJob;
         }
-      });
+
+        // Check if this job has saved line items in the database
+        if (mappedJob.sfOrderId) {
+          try {
+            const { data: savedJob, error: jobError } = await supabase
+              .from('jobs_sold')
+              .select(`
+                id,
+                line_items:job_line_items(
+                  id,
+                  product_id,
+                  product_name,
+                  quantity,
+                  unit_price,
+                  total
+                )
+              `)
+              .eq('sf_order_id', mappedJob.sfOrderId)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (!jobError && savedJob && savedJob.line_items && savedJob.line_items.length > 0) {
+              console.log('Found saved line items for job:', mappedJob.sfOrderId, savedJob.line_items);
+              
+              // Convert database line items to frontend format
+              const lineItems = savedJob.line_items.map((item: any) => ({
+                id: item.id,
+                productId: item.product_id,
+                productName: item.product_name,
+                quantity: item.quantity,
+                unitPrice: item.unit_price,
+                total: item.total
+              }));
+              
+              mappedJob.lineItems = lineItems;
+              mappedJob.lineItemsLocked = true;
+              
+              // Recalculate total from saved line items
+              mappedJob.leadSoldFor = lineItems.reduce((sum, item) => sum + item.total, 0);
+            }
+          } catch (dbError) {
+            console.error('Error checking for saved line items:', dbError);
+          }
+        }
+
+        return mappedJob;
+      }));
       
       console.log('=== FINAL MAPPED JOBS ===');
       console.log('Mapped jobs count:', mappedJobs.length);
@@ -214,16 +260,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   };
 
   const handleEditLineItems = (job: Job) => {
-    if (job.lineItemsLocked) {
-      toast({
-        title: "Line items locked",
-        description: "Line items have already been saved and cannot be edited.",
-        variant: "destructive"
-      });
-      return;
-    }
-    setEditingLineItems(job.lineItems || []);
     setEditedJobData(job);
+    setEditingLineItems(job.lineItems || []);
     setShowLineItemDialog(true);
   };
 
@@ -517,17 +555,27 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                            {job.paymentType}
                          </span>
                        </TableCell>
-                       <TableCell>
-                         <div className="flex space-x-2">
-                           <Button 
-                             size="sm" 
-                             variant={job.lineItemsLocked ? "outline" : "secondary"} 
-                             onClick={() => handleEditLineItems(job)}
-                             disabled={job.lineItemsLocked}
-                           >
-                             {job.lineItemsLocked ? "Line Items (Locked)" : "Line Items"}
-                           </Button>
-                          </div>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              size="sm" 
+                              variant={job.lineItemsLocked ? "outline" : "default"} 
+                              onClick={() => handleEditLineItems(job)}
+                              disabled={job.lineItemsLocked}
+                            >
+                              {job.lineItemsLocked ? (
+                                <>
+                                  <span className="text-green-600">✓</span> 
+                                  <span className="ml-1">Completed</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit Line Items
+                                </>
+                              )}
+                            </Button>
+                           </div>
                          {job.lineItems && job.lineItems.length > 0 && (
                            <div className="mt-2 p-2 bg-muted rounded text-xs">
                              <strong>Line Items:</strong>
