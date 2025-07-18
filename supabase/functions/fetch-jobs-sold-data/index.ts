@@ -14,7 +14,11 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { userRepSlug } = await req.json();
+    const requestBody = await req.json();
+    console.log('=== EDGE FUNCTION START ===');
+    console.log('Request body received:', JSON.stringify(requestBody, null, 2));
+    
+    const { userRepSlug } = requestBody;
     console.log('Fetching jobs sold data for rep slug:', userRepSlug);
 
     // Get service account credentials from environment
@@ -112,23 +116,34 @@ export default async function handler(req: Request): Promise<Response> {
     console.log('Seven days ago cutoff (jobs must be after this date):', sevenDaysAgo.toISOString());
 
     // Filter and process rows
+    console.log('=== STARTING ROW FILTERING ===');
+    console.log('Looking for rep slug:', userRepSlug);
+    
     const filteredRows = rows
       .filter(row => {
         const repSlug = row[repSlugIndex]?.trim();
         const installDateStr = row[installDateIndex]?.trim();
 
+        console.log(`Row check - Rep slug: "${repSlug}", Install date: "${installDateStr}"`);
+
         // Check rep slug match
         if (!repSlug || repSlug.toLowerCase() !== userRepSlug.toLowerCase()) {
+          console.log(`❌ Rep slug mismatch: "${repSlug}" !== "${userRepSlug}"`);
           return false;
         }
+        
+        console.log(`✅ Rep slug match: "${repSlug}" === "${userRepSlug}"`);
 
         // Check date filter (install_date > 7 days ago)
         if (installDateStr) {
           try {
             const installDate = new Date(installDateStr);
+            console.log(`Date check: ${installDate.toISOString()} > ${sevenDaysAgo.toISOString()}?`);
             if (installDate <= sevenDaysAgo) {
+              console.log(`❌ Date too old: ${installDate.toISOString()} <= ${sevenDaysAgo.toISOString()}`);
               return false;
             }
+            console.log(`✅ Date within range: ${installDate.toISOString()} > ${sevenDaysAgo.toISOString()}`);
           } catch (error) {
             console.warn('Invalid date format:', installDateStr);
             return false;
@@ -137,17 +152,23 @@ export default async function handler(req: Request): Promise<Response> {
 
         return true;
       })
-      .map(row => ({
-        client: row[clientIndex] || '',
-        jobNumber: row[jobNumberIndex] || '',
-        rep: userRepSlug,
-        leadSoldFor: parseFloat(row[leadSoldForIndex]?.replace(/[$,]/g, '') || '0'),
-        paymentType: row[paymentTypeIndex] || '',
-        installDate: row[installDateIndex] || '',
-        sfOrderId: row[sfOrderIdIndex] || '',
-      }));
+      .map(row => {
+        const mappedRow = {
+          client: row[clientIndex] || '',
+          jobNumber: row[jobNumberIndex] || '',
+          rep: userRepSlug,
+          leadSoldFor: parseFloat(row[leadSoldForIndex]?.replace(/[$,]/g, '') || '0'),
+          paymentType: row[paymentTypeIndex] || '',
+          installDate: row[installDateIndex] || '',
+          sfOrderId: row[sfOrderIdIndex] || '',
+        };
+        console.log('Mapped row:', mappedRow);
+        return mappedRow;
+      });
 
+    console.log('=== FILTERING COMPLETE ===');
     console.log('Filtered rows count:', filteredRows.length);
+    console.log('Final filtered data:', filteredRows);
 
     return new Response(
       JSON.stringify({ rows: filteredRows }),

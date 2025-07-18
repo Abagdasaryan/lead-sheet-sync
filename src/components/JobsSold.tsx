@@ -78,6 +78,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       }
 
       console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
+      console.log('About to call fetch-jobs-sold-data edge function...');
       
       const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { 
@@ -88,15 +89,20 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('=== EDGE FUNCTION RESPONSE ===');
       console.log('Error:', error);
       console.log('Data:', data);
+      console.log('Data type:', typeof data);
+      console.log('Data stringified:', JSON.stringify(data, null, 2));
       
       if (error) {
-        console.log('Edge function error:', error);
+        console.log('Edge function error details:', error);
+        console.log('Error message:', error.message);
+        console.log('Error context:', error.context);
         throw error;
       }
 
       const jobsData = data?.rows || [];
+      console.log('Jobs data extracted:', jobsData);
       console.log('Jobs data length:', jobsData.length);
-      console.log('Jobs data:', jobsData);
+      console.log('Jobs data type:', typeof jobsData);
       
       // Map the sheet data to Job format - the edge function now returns the correct structure
       const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
