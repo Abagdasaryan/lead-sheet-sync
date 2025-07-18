@@ -122,7 +122,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             client: row.client || '',
             jobNumber: row.job_number || '',
             rep: row.rep || '',
-            leadSoldFor: parseFloat(row.lead_sold_for?.replace(/[$,]/g, '') || '0') || 0,
+            leadSoldFor: parseFloat(row.price_sold?.replace(/[$,]/g, '') || '0') || 0,
             paymentType: row.payment_type || '',
             installDate: row.install_date || '',
             sfOrderId: row.sf_order_id || ''
@@ -472,7 +472,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                        className="cursor-pointer"
                        onClick={() => toggleSort('leadSoldFor')}
                      >
-                       Lead Sold For <ArrowUpDown className="ml-1 h-3 w-3 inline" />
+                       Price <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                      </TableHead>
                      <TableHead>Payment Type</TableHead>
                      <TableHead>Actions</TableHead>

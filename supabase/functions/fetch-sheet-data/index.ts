@@ -94,7 +94,7 @@ serve(async (req) => {
     
     if (sheetType === 'jobs-sold') {
       // Jobs Sold Sheet columns
-      allowedColumns = ['install_date', 'client', 'job_number', 'rep', 'lead_sold_for', 'payment_type', 'sf_order_id'];
+      allowedColumns = ['install_date', 'client', 'job_number', 'rep', 'price_sold', 'payment_type', 'sf_order_id'];
       slugColumn = 'Rep_slug'; // Different column name for jobs sold
       console.log('Using JOBS SOLD schema');
     } else {
