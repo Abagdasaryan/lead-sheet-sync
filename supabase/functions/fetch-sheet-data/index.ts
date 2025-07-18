@@ -17,8 +17,9 @@ serve(async (req) => {
   }
 
   try {
-    const { userEmail, userAlias } = await req.json();
-    console.log('Fetching data for user email:', userEmail, 'alias:', userAlias);
+    const { userEmail, userAlias, sheetType, requestId } = await req.json();
+    console.log('Request details:', { userEmail, userAlias, sheetType, requestId });
+    console.log('Fetching data for user email:', userEmail, 'alias:', userAlias, 'sheetType:', sheetType || 'leads');
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -36,9 +37,19 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained, length:', accessToken.length);
 
-    // Using the production Google Sheet
-    const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
-    const range = 'A1:ZZ8000'; // Extended range to capture more data
+    // Route to different sheets based on sheetType
+    let spreadsheetId, range;
+    if (sheetType === 'jobs-sold') {
+      // Jobs Sold Sheet
+      spreadsheetId = '1dIUosPCFVqn3UCU34X_XS4VZbXI6At8pE1lScoYp_TA';
+      range = 'A1:ZZ8000';
+      console.log('Using JOBS SOLD sheet');
+    } else {
+      // Default to Leads Sheet  
+      spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
+      range = 'A1:ZZ8000';
+      console.log('Using LEADS sheet');
+    }
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
 
@@ -78,162 +89,134 @@ serve(async (req) => {
     console.log('Headers found:', headers);
     console.log('Total rows to process:', rows.length);
 
-    // Find the RepEmail column index - be more flexible with header matching
-    console.log('Looking for RepEmail column in headers:', headers.map((h, i) => `${i}: "${h}"`));
-    const repEmailIndex = headers.findIndex(header => {
-      const lowerHeader = header.toLowerCase().trim();
-      console.log('Checking header:', lowerHeader);
-      return lowerHeader.includes('repemail') || 
-             lowerHeader.includes('rep email') ||
-             lowerHeader.includes('rep_email') ||
-             lowerHeader === 'repemail' ||
-             lowerHeader.includes('email') && lowerHeader.includes('rep');
-    });
-
-    if (repEmailIndex === -1) {
-      console.log('RepEmail column not found in headers:', headers);
-      throw new Error('RepEmail column not found in the sheet');
+    // Schema-aware processing based on sheet type
+    let allowedColumns, slugColumn;
+    
+    if (sheetType === 'jobs-sold') {
+      // Jobs Sold Sheet columns
+      allowedColumns = ['install_date', 'client', 'job_number', 'lead_sold_for', 'payment_type', 'sf_order_id'];
+      slugColumn = 'Rep_slug'; // Different column name for jobs sold
+      console.log('Using JOBS SOLD schema');
+    } else {
+      // Leads Sheet columns (existing)
+      allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
+      slugColumn = 'RepEmail'; // Original column name for leads
+      console.log('Using LEADS schema');
     }
-
-    console.log('RepEmail column found at index:', repEmailIndex);
-
-    // Date is in column C (index 2)
-    const dateColumnIndex = 2;
-    console.log('Using column C (index 2) for date filtering');
-    console.log('Date column header:', headers[dateColumnIndex]);
-
-    // Log first few rows for debugging
-    console.log('First 3 rows preview:');
-    rows.slice(0, 3).forEach((row, index) => {
-      console.log(`Row ${index + 1}:`, {
-        repEmail: row[repEmailIndex],
-        date: row[dateColumnIndex],
-        fullRow: row
-      });
+    
+    console.log('Looking for slug column:', slugColumn);
+    console.log('Expected data columns:', allowedColumns);
+    
+    // Find the slug column (Rep_slug for jobs, RepEmail for leads)
+    const slugIndex = headers.findIndex(header => {
+      const lowerHeader = header.toLowerCase().trim();
+      const targetSlug = slugColumn.toLowerCase().replace(/_/g, '');
+      return lowerHeader.includes(targetSlug) || 
+             lowerHeader.replace(/[_\s]/g, '') === targetSlug ||
+             lowerHeader === slugColumn.toLowerCase();
     });
-
-    // Debug: Show first 10 rows and all unique emails
-    console.log('=== DEBUGGING SHEET DATA ===');
-    console.log('Total rows in sheet:', rows.length);
-    console.log('Headers:', headers);
-    console.log('RepEmail column index:', repEmailIndex);
-    console.log('Date column index:', dateColumnIndex);
     
-    // Show first 10 rows
-    console.log('First 10 rows:');
-    rows.slice(0, 10).forEach((row, index) => {
-      console.log(`Row ${index + 1}:`, {
-        repEmail: row[repEmailIndex],
-        date: row[dateColumnIndex],
-        clientName: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || row[1],
-        status: row[headers.findIndex(h => h.toLowerCase().includes('status'))] || 'N/A'
-      });
-    });
-
-    // Show all unique emails
-    const allEmails = rows.map(row => row[repEmailIndex]).filter(email => email && email.trim());
-    const uniqueEmails = [...new Set(allEmails)];
-    console.log('All unique emails in RepEmail column:', uniqueEmails);
-    console.log('User email to match:', userEmail);
-    console.log('Does the sheet contain abgutterinstall@gmail.com?', uniqueEmails.includes('abgutterinstall@gmail.com'));
+    if (slugIndex === -1) {
+      console.log(`${slugColumn} column not found in headers:`, headers);
+      throw new Error(`${slugColumn} column not found in the sheet`);
+    }
     
-    // Count rows per email and show detailed breakdown
-    const emailCounts = {};
-    const emailRowDetails = {};
+    console.log(`${slugColumn} column found at index:`, slugIndex);
     
-    rows.forEach((row, index) => {
-      const repEmail = row[repEmailIndex];
-      if (repEmail) {
-        const cleanEmail = repEmail.trim();
-        emailCounts[cleanEmail] = (emailCounts[cleanEmail] || 0) + 1;
-        if (!emailRowDetails[cleanEmail]) emailRowDetails[cleanEmail] = [];
-        emailRowDetails[cleanEmail].push({
-          rowIndex: index + 1,
-          date: row[dateColumnIndex],
-          client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A'
-        });
+    // Different date filtering logic based on sheet type
+    let dateColumnIndex;
+    if (sheetType === 'jobs-sold') {
+      // Find install_date column for jobs sold
+      dateColumnIndex = headers.findIndex(h => h?.toLowerCase().includes('install_date') || h?.toLowerCase().includes('installdate'));
+      if (dateColumnIndex === -1) {
+        console.log('install_date column not found, using column index 2 as fallback');
+        dateColumnIndex = 2;
       }
-    });
+    } else {
+      // Use column C (index 2) for leads
+      dateColumnIndex = 2;
+    }
     
-    console.log('Email counts:', emailCounts);
-    console.log('Detailed breakdown for "ab":', emailRowDetails['ab'] || 'No rows found');
-    console.log('Detailed breakdown for "moderngutter12@gmail.com":', emailRowDetails['moderngutter12@gmail.com'] || 'No rows found');
+    console.log('Using date column index:', dateColumnIndex);
+    console.log('Date column header:', headers[dateColumnIndex]);
     
-    // SIMPLIFIED ROBUST FILTERING SYSTEM
-    console.log('=== FILTERING DEBUG ===');
-    console.log('userEmail:', userEmail);
-    console.log('userAlias:', userAlias);
+    // Calculate date filter (> 7 days ago for jobs sold, existing logic for leads)
+    let dateFilter;
+    if (sheetType === 'jobs-sold') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      dateFilter = sevenDaysAgo;
+      console.log('Jobs sold date filter (must be after):', dateFilter.toISOString());
+    }
     
+    // Helper function to normalize values for comparison
     const normalizeValue = (value) => {
       if (!value) return '';
       return value.toLowerCase().trim().replace(/\s+/g, '');
     };
     
-    // Priority: alias > email without domain > full email > contains match
-    const filterValue = userAlias || userEmail;
-    const filterValueNormalized = normalizeValue(filterValue);
-    const emailWithoutDomain = userEmail ? normalizeValue(userEmail.split('@')[0]) : '';
-    
-    console.log('Filter value:', filterValue);
-    console.log('Email without domain:', emailWithoutDomain);
-    
+    console.log('=== FILTERING DEBUG ===');
+    console.log('userEmail:', userEmail);
+    console.log('userAlias:', userAlias);
+    console.log('Filter value:', userAlias || userEmail);
+
+    // Filter rows using the appropriate slug column
     const filteredRows = rows.filter((row, index) => {
-      const repEmail = row[repEmailIndex];
-      const repEmailNormalized = normalizeValue(repEmail);
+      const slugValue = row[slugIndex];
+      const slugValueNormalized = normalizeValue(slugValue);
+      const filterValueNormalized = normalizeValue(userAlias || userEmail);
       
-      let isMatch = false;
-      let matchType = '';
+      // Check slug match
+      const isSlugMatch = slugValueNormalized === filterValueNormalized;
       
-      if (userAlias) {
-        // Exact alias matching
-        isMatch = repEmailNormalized === filterValueNormalized;
-        matchType = 'alias-exact';
-      } else {
-        // Multiple email matching strategies
-        if (repEmailNormalized === filterValueNormalized) {
-          isMatch = true;
-          matchType = 'email-exact';
-        } else if (repEmailNormalized === emailWithoutDomain) {
-          isMatch = true;
-          matchType = 'email-without-domain';
-        } else if (repEmailNormalized.includes(emailWithoutDomain) && emailWithoutDomain.length > 2) {
-          isMatch = true;
-          matchType = 'email-contains';
+      // Check date filter for jobs sold
+      if (sheetType === 'jobs-sold' && isSlugMatch) {
+        const dateStr = row[dateColumnIndex];
+        if (dateStr) {
+          try {
+            const rowDate = new Date(dateStr);
+            const isDateValid = rowDate > dateFilter;
+            console.log(`Date check for row ${index + 1}: ${dateStr} (${rowDate.toISOString()}) > ${dateFilter.toISOString()}? ${isDateValid}`);
+            return isDateValid;
+          } catch (error) {
+            console.warn('Invalid date format:', dateStr);
+            return false;
+          }
         }
+        return false;
       }
       
-      if (isMatch) {
+      // For leads, use existing logic (no additional date filtering here)
+      if (isSlugMatch) {
         console.log(`✓ MATCH found at row ${index + 1}:`, {
-          repEmail: repEmail,
-          normalized: repEmailNormalized,
-          matchType: matchType,
+          slugValue: slugValue,
+          normalized: slugValueNormalized,
           date: row[dateColumnIndex],
           client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A'
         });
       }
       
-      return isMatch;
+      return isSlugMatch;
     });
-
+    
     console.log('Total rows checked:', rows.length);
     console.log('Filtered rows count:', filteredRows.length);
-    console.log('=== END FILTERING DEBUG ===');
-
-    // Define the columns we want to return
-    const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
     
-    // Find the indices of allowed columns (case-insensitive)
+    // Find the indices of allowed columns (case-insensitive and flexible)
     const columnIndices = allowedColumns.map(allowedCol => {
-      const index = headers.findIndex(header => 
-        header.toLowerCase() === allowedCol.toLowerCase() ||
-        header.toLowerCase().replace(/\s+/g, '') === allowedCol.toLowerCase().replace(/\s+/g, '')
-      );
+      const index = headers.findIndex(header => {
+        const headerLower = header.toLowerCase().replace(/[_\s]/g, '');
+        const allowedLower = allowedCol.toLowerCase().replace(/[_\s]/g, '');
+        return headerLower === allowedLower || 
+               headerLower.includes(allowedLower) ||
+               allowedLower.includes(headerLower);
+      });
       return { name: allowedCol, index, originalName: index >= 0 ? headers[index] : null };
     }).filter(col => col.index >= 0);
 
     console.log('Column mapping:', columnIndices);
 
-    // Convert to objects with only allowed headers as keys
+    // Convert to objects with mapped column names
     const processedRows = filteredRows.map(row => {
       const obj: Record<string, string> = {};
       columnIndices.forEach(({ name, index }) => {

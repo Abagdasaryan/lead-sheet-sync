@@ -110,23 +110,45 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('Jobs data length:', jobsData.length);
       console.log('Jobs data type:', typeof jobsData);
       
-      // Map the sheet data to Job format - the edge function now returns the correct structure
+      // Map the sheet data to Job format based on sheet type
       const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
         console.log('Processing row:', index, row);
         
-        const mappedJob = {
-          id: `job-${index}`,
-          client: row.client || '',
-          jobNumber: row.jobNumber || '',
-          rep: row.rep || '',
-          leadSoldFor: row.leadSoldFor || 0,
-          paymentType: row.paymentType || '',
-          installDate: row.installDate || '',
-          sfOrderId: row.sfOrderId || ''
-        };
-        
-        console.log('Mapped job:', mappedJob);
-        return mappedJob;
+        // For jobs-sold sheet, data comes with mapped column names
+        if (row.install_date) {
+          // Jobs sold data structure
+          const mappedJob = {
+            id: `job-${index}`,
+            client: row.client || '',
+            jobNumber: row.job_number || '',
+            rep: profile.rep_alias || '',
+            leadSoldFor: parseFloat(row.lead_sold_for?.replace(/[$,]/g, '') || '0') || 0,
+            paymentType: row.payment_type || '',
+            installDate: row.install_date || '',
+            sfOrderId: row.sf_order_id || ''
+          };
+          
+          console.log('Mapped job (jobs-sold):', mappedJob);
+          return mappedJob;
+        } else {
+          // Leads data structure (fallback)
+          const priceString = row['Last Price'] || '0';
+          const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
+          
+          const mappedJob = {
+            id: `job-${index}`,
+            client: row['CLIENT NAME'] || '',
+            jobNumber: row['AppointmentName'] || '',
+            rep: profile.rep_alias || '',
+            leadSoldFor: priceValue,
+            paymentType: row['Status'] || '',
+            installDate: row['date'] || '',
+            sfOrderId: ''
+          };
+          
+          console.log('Mapped job (leads fallback):', mappedJob);
+          return mappedJob;
+        }
       });
       
       console.log('=== FINAL MAPPED JOBS ===');
@@ -334,7 +356,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   };
 
-  const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))];
+  const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))].filter(type => type && type.trim() !== '');
 
   return (
     <div className="min-h-screen bg-background p-6">
