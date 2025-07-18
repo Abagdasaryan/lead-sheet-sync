@@ -151,9 +151,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         }
 
         // Check if this job has saved line items in the database
-        if (mappedJob.sfOrderId) {
+        if (mappedJob.sfOrderId || mappedJob.jobNumber) {
           try {
-            const { data: savedJob, error: jobError } = await supabase
+            let query = supabase
               .from('jobs_sold')
               .select(`
                 id,
@@ -166,12 +166,19 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   total
                 )
               `)
-              .eq('sf_order_id', mappedJob.sfOrderId)
-              .eq('user_id', user.id)
-              .maybeSingle();
+              .eq('user_id', user.id);
+
+            // Try to match by sf_order_id first, then by job_number
+            if (mappedJob.sfOrderId) {
+              query = query.eq('sf_order_id', mappedJob.sfOrderId);
+            } else {
+              query = query.eq('job_number', mappedJob.jobNumber);
+            }
+
+            const { data: savedJob, error: jobError } = await query.maybeSingle();
 
             if (!jobError && savedJob && savedJob.line_items && savedJob.line_items.length > 0) {
-              console.log('Found saved line items for job:', mappedJob.sfOrderId, savedJob.line_items);
+              console.log('Found saved line items for job:', mappedJob.sfOrderId || mappedJob.jobNumber, savedJob.line_items);
               
               // Convert database line items to frontend format
               const lineItems = savedJob.line_items.map((item: any) => ({
