@@ -11,8 +11,6 @@ interface AuthFormProps {}
 export const AuthForm = ({}: AuthFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -72,34 +70,21 @@ export const AuthForm = ({}: AuthFormProps) => {
     }
   };
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`,
       });
       
       if (error) throw error;
       
       toast({
-        title: "Password updated!",
-        description: "Your password has been successfully changed.",
+        title: "Password reset email sent!",
+        description: "Check your email for the password reset link.",
       });
-      
-      setNewPassword("");
-      setConfirmPassword("");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -116,7 +101,7 @@ export const AuthForm = ({}: AuthFormProps) => {
       <CardHeader>
         <CardTitle>Authentication</CardTitle>
         <CardDescription>
-          Login, use magic link, or change your password
+          Login with email/password, magic link, or reset your password
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -124,7 +109,7 @@ export const AuthForm = ({}: AuthFormProps) => {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="login">Login</TabsTrigger>
             <TabsTrigger value="magic">Magic Link</TabsTrigger>
-            <TabsTrigger value="password">Change Password</TabsTrigger>
+            <TabsTrigger value="reset">Reset Password</TabsTrigger>
           </TabsList>
           
           <TabsContent value="login">
@@ -170,28 +155,19 @@ export const AuthForm = ({}: AuthFormProps) => {
             </form>
           </TabsContent>
           
-          <TabsContent value="password">
-            <form onSubmit={handlePasswordChange} className="space-y-4">
+          <TabsContent value="reset">
+            <form onSubmit={handlePasswordReset} className="space-y-4">
               <div>
                 <Input
-                  type="password"
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <Input
-                  type="password"
-                  placeholder="Confirm New Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Updating..." : "Update Password"}
+                {loading ? "Sending..." : "Send Reset Email"}
               </Button>
             </form>
           </TabsContent>

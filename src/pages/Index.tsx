@@ -53,7 +53,7 @@ const Index = () => {
           Access your personalized Google Sheets data
         </p>
         <Button onClick={() => navigate("/auth")} size="lg">
-          Login / Sign Up
+          Login
         </Button>
       </div>
     </div>
