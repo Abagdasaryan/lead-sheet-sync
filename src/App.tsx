@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,11 @@ const App = () => (
           <Route path="/auth" element={
             <Suspense fallback={<div>Loading...</div>}>
               <Auth />
+            </Suspense>
+          } />
+          <Route path="/reset-password" element={
+            <Suspense fallback={<div>Loading...</div>}>
+              <ResetPassword />
             </Suspense>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
