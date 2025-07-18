@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
@@ -12,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, RefreshCw, LogOut, Database, Filter, X, TrendingUp, Save, Edit, ArrowUpDown, User as UserIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { MobileDataCard } from "./MobileDataCard";
 
 interface DashboardProps {
   user: User;
@@ -31,14 +33,13 @@ export const Leads = ({ user }: DashboardProps) => {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  // Store row ID for editing rather than index
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editedRowData, setEditedRowData] = useState<any | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
-  // Define editable columns
   const editableColumns = ['Status', 'Lost Reason', 'Last Price'];
   const allColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
 
@@ -51,10 +52,8 @@ export const Leads = ({ user }: DashboardProps) => {
   };
 
   const handleEdit = (rowData: any) => {
-    // Create unique ID using date + client as key to identify the row
     const rowId = `${rowData.date}-${rowData['CLIENT NAME']}`;
     setEditingRowId(rowId);
-    // Initialize edited data with current row data
     setEditedRowData({ ...rowData });
   };
 
@@ -62,23 +61,20 @@ export const Leads = ({ user }: DashboardProps) => {
     if (!editingRowId || !editedRowData) return;
     
     try {
-      // Update Google Sheets
       const { data, error } = await supabase.functions.invoke('update-sheet-data', {
         body: { 
           rowData: editedRowData,
-          rowIndex: 0 // Not using index-based approach
+          rowIndex: 0
         }
       });
 
       if (error) throw error;
 
-      // Update local data on successful save
       setSheetData(prev => prev.map(row => {
         const rowId = `${row.date}-${row['CLIENT NAME']}`;
         return rowId === editingRowId ? editedRowData : row;
       }));
       
-      // Clear editing state
       setEditingRowId(null);
       setEditedRowData(null);
 
@@ -97,7 +93,6 @@ export const Leads = ({ user }: DashboardProps) => {
   };
 
   const handleCancel = () => {
-    // Clear editing state
     setEditingRowId(null);
     setEditedRowData(null);
   };
@@ -165,14 +160,11 @@ export const Leads = ({ user }: DashboardProps) => {
     }
   }, [profile]);
 
-  // Filter by date range and sort data - show last 5 days by default
   const filteredAndSortedData = React.useMemo(() => {
     console.log('Starting with sheetData:', sheetData);
     
-    // Start with all data
     let filteredData = [...sheetData];
     
-    // Apply automatic 5-day filter
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
     console.log('Five days ago cutoff:', fiveDaysAgo);
@@ -201,14 +193,12 @@ export const Leads = ({ user }: DashboardProps) => {
     
     console.log('Filtered data after date filter:', filteredData);
     
-    // Apply sorting
     return filteredData.sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
       
       switch (sortBy) {
         case 'date':
-          // Parse date strings for proper comparison
           const aDateStr = a.date || '';
           const bDateStr = b.date || '';
           const [aMonth, aDay, aYear] = aDateStr.split('/').map(num => parseInt(num) || 0);
@@ -239,60 +229,67 @@ export const Leads = ({ user }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header Section */}
-        <div className="animate-slide-up">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                APGS Sales Rep Dashboard
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                Welcome back, <span className="text-foreground font-medium">{user.email}</span>
-              </p>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Database className="h-4 w-4" />
-                <span>Connected to Google Sheets</span>
+      <div className={`${isMobile ? 'px-4' : 'max-w-7xl mx-auto px-6'} space-y-6`}>
+        {/* Header Section - Hide on mobile since we have MobileHeader */}
+        {!isMobile && (
+          <div className="animate-slide-up">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
+              <div className="space-y-2">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  APGS Sales Rep Dashboard
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  Welcome back, <span className="text-foreground font-medium">{user.email}</span>
+                </p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Database className="h-4 w-4" />
+                  <span>Connected to Google Sheets</span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={fetchSheetData} 
+                  disabled={loading}
+                  className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105"
+                  size="lg"
+                >
+                  <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                  {loading ? "Loading..." : "Refresh Data"}
+                </Button>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
-                onClick={fetchSheetData} 
-                disabled={loading}
-                className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105"
-                size="lg"
-              >
-                <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-                {loading ? "Loading..." : "Refresh Data"}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleLogout}
-                size="lg"
-                className="hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
-            </div>
           </div>
-        </div>
+        )}
+
+        {/* Mobile Header Actions */}
+        {isMobile && (
+          <div className="flex justify-between items-center">
+            <Button 
+              onClick={fetchSheetData} 
+              disabled={loading}
+              className="bg-primary hover:bg-primary/90"
+              size="sm"
+            >
+              <RefreshCw className={cn("mr-2 h-3 w-3", loading && "animate-spin")} />
+              {loading ? "Loading..." : "Refresh"}
+            </Button>
+          </div>
+        )}
 
         {/* Data Controls Section */}
         <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
           <Card className="shadow-elegant border-border/50 bg-gradient-to-r from-card to-card/80">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ArrowUpDown className="h-5 w-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ArrowUpDown className="h-4 w-4 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription>Sort your data (showing last 5 days)</CardDescription>
+              <CardDescription className="text-sm">Sort your data (showing last 5 days)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Sorting Options */}
+              <div className={`flex ${isMobile ? 'flex-col' : 'flex-wrap'} items-center gap-3`}>
                 <Select value={sortBy} onValueChange={(value: 'date' | 'status' | 'client') => setSortBy(value)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className={`${isMobile ? 'w-full' : 'w-[180px]'}`}>
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -306,7 +303,7 @@ export const Leads = ({ user }: DashboardProps) => {
                   variant="outline"
                   size="sm"
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="hover:bg-primary/10 hover:border-primary transition-all duration-300"
+                  className={`hover:bg-primary/10 hover:border-primary transition-all duration-300 ${isMobile ? 'w-full' : ''}`}
                 >
                   <ArrowUpDown className="mr-2 h-4 w-4" />
                   {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
@@ -317,7 +314,7 @@ export const Leads = ({ user }: DashboardProps) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
           <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Records</CardTitle>
@@ -325,9 +322,7 @@ export const Leads = ({ user }: DashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-primary">{filteredAndSortedData.length}</div>
-              <p className="text-xs text-muted-foreground">
-                from last 5 days
-              </p>
+              <p className="text-xs text-muted-foreground">from last 5 days</p>
             </CardContent>
           </Card>
 
@@ -337,10 +332,8 @@ export const Leads = ({ user }: DashboardProps) => {
               <Database className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold truncate">{user.email}</div>
-              <p className="text-xs text-muted-foreground">
-                authenticated user
-              </p>
+              <div className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold truncate`}>{user.email}</div>
+              <p className="text-xs text-muted-foreground">authenticated user</p>
             </CardContent>
           </Card>
 
@@ -350,23 +343,21 @@ export const Leads = ({ user }: DashboardProps) => {
               <Filter className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Google Sheets</div>
-              <p className="text-xs text-muted-foreground">
-                live connection
-              </p>
+              <div className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>Google Sheets</div>
+              <p className="text-xs text-muted-foreground">live connection</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Data Table */}
+        {/* Data Display */}
         <div className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
           <Card className="shadow-elegant border-border/50 bg-gradient-to-br from-card to-card/80">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Database className="h-4 w-4 text-primary" />
                 Your Sheet Data
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
                   Last 5 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
@@ -383,136 +374,236 @@ export const Leads = ({ user }: DashboardProps) => {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-border/50 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-muted to-muted/50">
-                        <tr>
-                          {allColumns.map((column) => (
-                            <th key={column} className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
-                              {column}
-                            </th>
-                          ))}
-                          <th className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                         {filteredAndSortedData.map((row, rowIndex) => {
-                           const rowId = `${row.date}-${row['CLIENT NAME']}`;
-                           const isEditing = editingRowId === rowId;
-                           const currentData = isEditing ? editedRowData : row;
-                           
-                           return (
-                             <tr 
-                               key={rowIndex} 
-                               className={cn(
-                                 "transition-colors duration-200 border-b border-border/30",
-                                 isEditing 
-                                   ? "bg-primary/10 border-primary/30 shadow-md ring-2 ring-primary/20" 
-                                   : "hover:bg-muted/30"
-                               )}
-                             >
-                               {allColumns.map((column) => {
-                                 const isEditable = editableColumns.includes(column);
-                                 const cellValue = currentData[column] || '';
-                                 
-                                 return (
-                                   <td key={column} className="border-r border-border/20 p-4 text-sm">
-                                     {isEditing && isEditable ? (
-                                       <div className="w-full min-w-[120px]">
-                                         {column === 'Status' ? (
-                                           <Select
-                                             value={cellValue}
-                                             onValueChange={(value) => handleCellChange(column, value)}
-                                           >
-                                             <SelectTrigger className="w-full">
-                                               <SelectValue placeholder="Select status" />
-                                             </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="Closed - Won">Closed - Won</SelectItem>
-                                               <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
-                                             </SelectContent>
-                                           </Select>
-                                         ) : column === 'Last Price' ? (
-                                           <Input
-                                             type="number"
-                                             value={cellValue.toString().replace(/[$,]/g, '')}
-                                             onChange={(e) => {
-                                               const value = e.target.value;
-                                               const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
-                                               handleCellChange(column, formattedValue);
-                                             }}
-                                             className="w-full"
-                                             placeholder="Enter amount"
-                                             step="0.01"
-                                             min="0"
-                                           />
-                                         ) : (
-                                           <Input
-                                             value={cellValue}
-                                             onChange={(e) => handleCellChange(column, e.target.value)}
-                                             className="w-full"
-                                             placeholder={`Enter ${column}`}
-                                           />
-                                         )}
-                                       </div>
-                                     ) : (
-                                       <span className={cn(
-                                         isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
-                                         column === 'Status' && cellValue && getStatusColor(cellValue),
-                                         "block min-h-[32px] flex items-center"
-                                       )}>
-                                         {column === 'Last Price' && cellValue ? 
-                                           (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
-                                           : cellValue
-                                         }
-                                       </span>
-                                     )}
-                                   </td>
-                                 );
-                               })}
-                               <td className="border-r border-border/20 p-4 text-sm">
-                                 <div className="flex gap-2">
-                                   {isEditing ? (
-                                     <>
-                                       <Button
-                                         size="sm"
-                                         onClick={handleSave}
-                                         className="bg-green-600 hover:bg-green-700 text-white"
-                                       >
-                                         <Save className="h-3 w-3 mr-1" />
-                                         Save
-                                       </Button>
-                                       <Button
-                                         size="sm"
-                                         variant="outline"
-                                         onClick={handleCancel}
-                                       >
-                                         Cancel
-                                       </Button>
-                                     </>
-                                   ) : (
-                                     <Button
-                                       size="sm"
-                                       variant="outline"
-                                       onClick={() => handleEdit(row)}
-                                       className="hover:bg-primary/10 hover:border-primary"
-                                     >
-                                       <Edit className="h-3 w-3 mr-1" />
-                                       Edit
-                                     </Button>
+                <>
+                  {/* Mobile Card View */}
+                  {isMobile ? (
+                    <div className="space-y-3">
+                      {filteredAndSortedData.map((row, rowIndex) => {
+                        const rowId = `${row.date}-${row['CLIENT NAME']}`;
+                        const isEditing = editingRowId === rowId;
+                        
+                        if (isEditing) {
+                          return (
+                            <Card key={rowIndex} className="border-primary/30 shadow-md ring-2 ring-primary/20">
+                              <CardContent className="p-4 space-y-4">
+                                <h3 className="font-medium text-sm">{row['CLIENT NAME']}</h3>
+                                
+                                <div className="space-y-3">
+                                  <div>
+                                    <Label htmlFor="status" className="text-xs">Status</Label>
+                                    <Select
+                                      value={editedRowData?.Status || ''}
+                                      onValueChange={(value) => handleCellChange('Status', value)}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Closed - Won">Closed - Won</SelectItem>
+                                        <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="lost-reason" className="text-xs">Lost Reason</Label>
+                                    <Input
+                                      value={editedRowData?.['Lost Reason'] || ''}
+                                      onChange={(e) => handleCellChange('Lost Reason', e.target.value)}
+                                      className="w-full"
+                                      placeholder="Enter lost reason"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="last-price" className="text-xs">Last Price</Label>
+                                    <Input
+                                      type="number"
+                                      value={editedRowData?.['Last Price']?.toString().replace(/[$,]/g, '') || ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                        handleCellChange('Last Price', formattedValue);
+                                      }}
+                                      className="w-full"
+                                      placeholder="Enter amount"
+                                      step="0.01"
+                                      min="0"
+                                    />
+                                  </div>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={handleSave}
+                                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                                  >
+                                    <Save className="h-3 w-3 mr-1" />
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    className="flex-1"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        }
+                        
+                        return (
+                          <MobileDataCard
+                            key={rowIndex}
+                            data={row}
+                            onEdit={handleEdit}
+                            primaryField="CLIENT NAME"
+                            secondaryField="AppointmentName"
+                            statusField="Status"
+                            dateField="date"
+                            additionalFields={['Last Price']}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Desktop Table View */
+                    <div className="rounded-lg border border-border/50 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gradient-to-r from-muted to-muted/50">
+                            <tr>
+                              {allColumns.map((column) => (
+                                <th key={column} className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
+                                  {column}
+                                </th>
+                              ))}
+                              <th className="border-r border-border/30 p-4 text-left font-semibold text-foreground">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                             {filteredAndSortedData.map((row, rowIndex) => {
+                               const rowId = `${row.date}-${row['CLIENT NAME']}`;
+                               const isEditing = editingRowId === rowId;
+                               const currentData = isEditing ? editedRowData : row;
+                               
+                               return (
+                                 <tr 
+                                   key={rowIndex} 
+                                   className={cn(
+                                     "transition-colors duration-200 border-b border-border/30",
+                                     isEditing 
+                                       ? "bg-primary/10 border-primary/30 shadow-md ring-2 ring-primary/20" 
+                                       : "hover:bg-muted/30"
                                    )}
-                                 </div>
-                               </td>
-                             </tr>
-                           );
-                         })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                                 >
+                                   {allColumns.map((column) => {
+                                     const isEditable = editableColumns.includes(column);
+                                     const cellValue = currentData[column] || '';
+                                     
+                                     return (
+                                       <td key={column} className="border-r border-border/20 p-4 text-sm">
+                                         {isEditing && isEditable ? (
+                                           <div className="w-full min-w-[120px]">
+                                             {column === 'Status' ? (
+                                               <Select
+                                                 value={cellValue}
+                                                 onValueChange={(value) => handleCellChange(column, value)}
+                                               >
+                                                 <SelectTrigger className="w-full">
+                                                   <SelectValue placeholder="Select status" />
+                                                 </SelectTrigger>
+                                                 <SelectContent>
+                                                   <SelectItem value="Closed - Won">Closed - Won</SelectItem>
+                                                   <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
+                                                 </SelectContent>
+                                               </Select>
+                                             ) : column === 'Last Price' ? (
+                                               <Input
+                                                 type="number"
+                                                 value={cellValue.toString().replace(/[$,]/g, '')}
+                                                 onChange={(e) => {
+                                                   const value = e.target.value;
+                                                   const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                                   handleCellChange(column, formattedValue);
+                                                 }}
+                                                 className="w-full"
+                                                 placeholder="Enter amount"
+                                                 step="0.01"
+                                                 min="0"
+                                               />
+                                             ) : (
+                                               <Input
+                                                 value={cellValue}
+                                                 onChange={(e) => handleCellChange(column, e.target.value)}
+                                                 className="w-full"
+                                                 placeholder={`Enter ${column}`}
+                                               />
+                                             )}
+                                           </div>
+                                         ) : (
+                                           <span className={cn(
+                                             isEditable && !isEditing && "cursor-pointer hover:bg-primary/5 px-2 py-1 rounded transition-colors",
+                                             column === 'Status' && cellValue && getStatusColor(cellValue),
+                                             "block min-h-[32px] flex items-center"
+                                           )}>
+                                             {column === 'Last Price' && cellValue ? 
+                                               (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
+                                               : cellValue
+                                             }
+                                           </span>
+                                         )}
+                                       </td>
+                                     );
+                                   })}
+                                   <td className="border-r border-border/20 p-4 text-sm">
+                                     <div className="flex gap-2">
+                                       {isEditing ? (
+                                         <>
+                                           <Button
+                                             size="sm"
+                                             onClick={handleSave}
+                                             className="bg-green-600 hover:bg-green-700 text-white"
+                                           >
+                                             <Save className="h-3 w-3 mr-1" />
+                                             Save
+                                           </Button>
+                                           <Button
+                                             size="sm"
+                                             variant="outline"
+                                             onClick={handleCancel}
+                                           >
+                                             Cancel
+                                           </Button>
+                                         </>
+                                       ) : (
+                                         <Button
+                                           size="sm"
+                                           variant="outline"
+                                           onClick={() => handleEdit(row)}
+                                           className="hover:bg-primary/10 hover:border-primary"
+                                         >
+                                           <Edit className="h-3 w-3 mr-1" />
+                                           Edit
+                                         </Button>
+                                       )}
+                                     </div>
+                                   </td>
+                                 </tr>
+                               );
+                             })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -522,7 +613,6 @@ export const Leads = ({ user }: DashboardProps) => {
   );
 };
 
-// Helper function to get status colors
 const getStatusColor = (status: string) => {
   const statusLower = status.toLowerCase();
   if (statusLower.includes('confirmed') || statusLower.includes('booked')) {

@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, ArrowUpDown, Edit, Save, X, Plus, Trash2 } from "lucide-react";
-import { Job, JobLineItem, Product } from "@/types/products";
-import { supabase } from "@/integrations/supabase/client";
-import { Send } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { RefreshCw, Plus, Trash2, Edit, DollarSign, User as UserIcon, Calendar, Package } from "lucide-react";
+import { MobileDataCard } from "./MobileDataCard";
+import { cn } from "@/lib/utils";
 
 interface JobsSoldProps {
   user: User;
@@ -27,21 +27,29 @@ interface Profile {
   updated_at: string;
 }
 
-export const JobsSold = ({ user }: JobsSoldProps) => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [editedJobData, setEditedJobData] = useState<Job | null>(null);
-  const [sortBy, setSortBy] = useState<'installDate' | 'client' | 'leadSoldFor'>('installDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [editingLineItems, setEditingLineItems] = useState<JobLineItem[]>([]);
-  const [showLineItemDialog, setShowLineItemDialog] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const { toast } = useToast();
+interface JobData {
+  id?: string;
+  customerName: string;
+  jobDescription: string;
+  amount: number;
+  date: string;
+}
 
-  // Production webhook URL
+export const JobsSold = ({ user }: JobsSoldProps) => {
+  const [jobs, setJobs] = useState<JobData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState<JobData | null>(null);
+  const [formData, setFormData] = useState<JobData>({
+    customerName: '',
+    jobDescription: '',
+    amount: 0,
+    date: new Date().toISOString().split('T')[0]
+  });
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+
   const PRODUCTION_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b';
 
   const fetchProfile = async () => {
@@ -61,640 +69,444 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   const fetchJobsData = async () => {
     setLoading(true);
-    console.log('=== FETCH JOBS DATA START ===');
-    console.log('Profile:', profile);
-    console.log('User email:', user.email);
-    
     try {
-      if (!profile?.rep_alias) {
-        console.log('ERROR: No rep alias found');
-        toast({
-          title: "Error",
-          description: "Rep alias not found in profile. Please update your profile with your rep slug.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
-      console.log('About to call fetch-jobs-sold-data edge function...');
-      
-      const requestId = Date.now();
-      console.log('REQUEST ID:', requestId, 'calling fetch-sheet-data for JOBS SOLD');
-      
-      const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
+      const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { 
           userEmail: user.email,
-          userAlias: profile.rep_alias,
-          sheetType: 'jobs-sold',
-          requestId: requestId
+          userAlias: profile?.rep_alias
         }
       });
 
-      console.log('=== EDGE FUNCTION RESPONSE ===');
-      console.log('Error:', error);
-      console.log('Data:', data);
-      console.log('Data type:', typeof data);
-      console.log('Data stringified:', JSON.stringify(data, null, 2));
-      
-      if (error) {
-        console.log('Edge function error details:', error);
-        console.log('Error message:', error.message);
-        console.log('Error context:', error.context);
-        throw error;
-      }
+      if (error) throw error;
 
-      const jobsData = data?.rows || [];
-      console.log('Jobs data extracted:', jobsData);
-      console.log('Jobs data length:', jobsData.length);
-      console.log('Jobs data type:', typeof jobsData);
-      
-      // Map the sheet data to Job format and check for saved line items
-      const mappedJobs: Job[] = await Promise.all(jobsData.map(async (row: any, index: number) => {
-        console.log('Processing row:', index, row);
-        
-        let mappedJob: Job;
-        
-        // For jobs-sold sheet, data comes with mapped column names
-        if (row.install_date) {
-          // Jobs sold data structure
-          mappedJob = {
-            id: `job-${index}`,
-            client: row.client || '',
-            jobNumber: row.job_number || '',
-            rep: row.rep || '',
-            leadSoldFor: parseFloat(row.price_sold?.replace(/[$,]/g, '') || '0') || 0,
-            paymentType: row.payment_type || '',
-            installDate: row.install_date || '',
-            sfOrderId: row.sf_order_id || ''
-          };
-          
-          console.log('Mapped job (jobs-sold):', mappedJob);
-        } else {
-          // Leads data structure (fallback)
-          const priceString = row['Last Price'] || '0';
-          const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
-          
-          mappedJob = {
-            id: `job-${index}`,
-            client: row['CLIENT NAME'] || '',
-            jobNumber: row['AppointmentName'] || '',
-            rep: profile.rep_alias || '',
-            leadSoldFor: priceValue,
-            paymentType: row['Status'] || '',
-            installDate: row['date'] || '',
-            sfOrderId: ''
-          };
-          
-          console.log('Mapped job (leads fallback):', mappedJob);
-        }
-
-        // Check if this job has saved line items in the database
-        if (mappedJob.sfOrderId || mappedJob.jobNumber) {
-          try {
-            let query = supabase
-              .from('jobs_sold')
-              .select(`
-                id,
-                line_items:job_line_items(
-                  id,
-                  product_id,
-                  product_name,
-                  quantity,
-                  unit_price,
-                  total
-                )
-              `)
-              .eq('user_id', user.id);
-
-            // Try to match by sf_order_id first, then by job_number
-            if (mappedJob.sfOrderId) {
-              query = query.eq('sf_order_id', mappedJob.sfOrderId);
-            } else {
-              query = query.eq('job_number', mappedJob.jobNumber);
-            }
-
-            const { data: savedJob, error: jobError } = await query.maybeSingle();
-
-            if (!jobError && savedJob && savedJob.line_items && savedJob.line_items.length > 0) {
-              console.log('Found saved line items for job:', mappedJob.sfOrderId || mappedJob.jobNumber, savedJob.line_items);
-              
-              // Convert database line items to frontend format
-              const lineItems = savedJob.line_items.map((item: any) => ({
-                id: item.id,
-                productId: item.product_id,
-                productName: item.product_name,
-                quantity: item.quantity,
-                unitPrice: item.unit_price,
-                total: item.total
-              }));
-              
-              mappedJob.lineItems = lineItems;
-              mappedJob.lineItemsLocked = true;
-              
-              // Recalculate total from saved line items
-              mappedJob.leadSoldFor = lineItems.reduce((sum, item) => sum + item.total, 0);
-            }
-          } catch (dbError) {
-            console.error('Error checking for saved line items:', dbError);
-          }
-        }
-
-        return mappedJob;
-      }));
-      
-      console.log('=== FINAL MAPPED JOBS ===');
-      console.log('Mapped jobs count:', mappedJobs.length);
-      console.log('Mapped jobs:', mappedJobs);
-      
-      setJobs(mappedJobs);
-      console.log('Jobs state updated');
-      
+      console.log('Jobs data from backend:', data);
+      setJobs(data.jobs || []);
       toast({
-        title: "Data loaded",
-        description: `Found ${jobsData.length} jobs sold for rep ${profile.rep_alias}.`,
+        title: "Jobs loaded",
+        description: `Found ${data.jobs?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
       });
     } catch (error: any) {
-      console.error('Error fetching jobs data:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch jobs data",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      console.log('=== FETCH JOBS DATA END ===');
       setLoading(false);
     }
+  };
+
+  const sendWebhook = async (jobData: JobData, action: 'create' | 'update' | 'delete') => {
+    try {
+      const webhookPayload = {
+        action,
+        job: jobData,
+        timestamp: new Date().toISOString(),
+        userEmail: user.email,
+        userAlias: profile?.rep_alias
+      };
+
+      console.log('Sending webhook payload:', webhookPayload);
+
+      const response = await fetch(PRODUCTION_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+      }
+
+      console.log('Webhook sent successfully');
+      
+      toast({
+        title: "Webhook sent",
+        description: `Job ${action} webhook sent successfully`,
+      });
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      toast({
+        title: "Webhook Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const jobData = {
+      ...formData,
+      id: editingJob?.id || `job_${Date.now()}`
+    };
+
+    try {
+      if (editingJob) {
+        setJobs(prev => prev.map(job => job.id === editingJob.id ? jobData : job));
+        await sendWebhook(jobData, 'update');
+      } else {
+        setJobs(prev => [...prev, jobData]);
+        await sendWebhook(jobData, 'create');
+      }
+
+      setIsModalOpen(false);
+      setEditingJob(null);
+      setFormData({
+        customerName: '',
+        jobDescription: '',
+        amount: 0,
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      toast({
+        title: editingJob ? "Job updated" : "Job added",
+        description: `Job ${editingJob ? 'updated' : 'added'} successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (job: JobData) => {
+    setEditingJob(job);
+    setFormData(job);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (job: JobData) => {
+    try {
+      setJobs(prev => prev.filter(j => j.id !== job.id));
+      await sendWebhook(job, 'delete');
+      
+      toast({
+        title: "Job deleted",
+        description: "Job deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddNew = () => {
+    setEditingJob(null);
+    setFormData({
+      customerName: '',
+      jobDescription: '',
+      amount: 0,
+      date: new Date().toISOString().split('T')[0]
+    });
+    setIsModalOpen(true);
   };
 
   useEffect(() => {
     fetchProfile();
   }, [user.id]);
 
-  const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      setProducts(data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load products.",
-        variant: "destructive"
-      });
-    }
-  };
-
   useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const handleRefresh = async () => {
-    fetchProducts();
     if (profile) {
-      await fetchJobsData();
+      fetchJobsData();
     }
-    toast({
-      title: "Data refreshed",
-      description: "Jobs sold data has been updated.",
-    });
-  };
+  }, [profile]);
 
-  const handleEditLineItems = (job: Job) => {
-    setEditedJobData(job);
-    setEditingLineItems(job.lineItems || []);
-    setShowLineItemDialog(true);
-  };
+  const totalAmount = jobs.reduce((sum, job) => sum + job.amount, 0);
 
-  const addLineItem = () => {
-    const newLineItem: JobLineItem = {
-      id: Date.now().toString(),
-      productId: "",
-      productName: "",
-      quantity: 1,
-      unitPrice: 0,
-      total: 0
-    };
-    setEditingLineItems([...editingLineItems, newLineItem]);
-  };
-
-  const updateLineItem = (index: number, field: string, value: any) => {
-    const updatedItems = [...editingLineItems];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-    
-    if (field === 'productId') {
-      const product = products.find(p => p.id === value);
-      if (product) {
-        updatedItems[index].productName = product.name;
-        updatedItems[index].unitPrice = product.unit_price;
-        updatedItems[index].total = updatedItems[index].quantity * product.unit_price;
-      }
-    } else if (field === 'quantity') {
-      updatedItems[index].total = value * updatedItems[index].unitPrice;
-    }
-    
-    setEditingLineItems(updatedItems);
-  };
-
-  const removeLineItem = (index: number) => {
-    setEditingLineItems(editingLineItems.filter((_, i) => i !== index));
-  };
-
-  const saveLineItems = async () => {
-    if (!editedJobData) return;
-    
-    const totalAmount = editingLineItems.reduce((sum, item) => sum + item.total, 0);
-    const updatedJob = {
-      ...editedJobData,
-      lineItems: editingLineItems,
-      leadSoldFor: totalAmount,
-      lineItemsLocked: true
-    };
-    
-    setJobs(jobs.map(job => 
-      job.id === updatedJob.id ? updatedJob : job
-    ));
-    
-    try {
-      console.log('=== FRONTEND DEBUG ===');
-      console.log('Sending webhook with URL:', PRODUCTION_WEBHOOK_URL);
-      console.log('Job data:', updatedJob);
-      console.log('Line items:', editingLineItems);
-      
-      const { data, error } = await supabase.functions.invoke('send-job-webhook', {
-        body: {
-          webhookUrl: PRODUCTION_WEBHOOK_URL,
-          jobData: updatedJob,
-          lineItems: editingLineItems
-        }
-      });
-
-      console.log('Edge function response:', { data, error });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      toast({
-        title: "Line items saved successfully",
-        description: `Job saved to database and webhook sent. Response: ${data?.message || 'Success'}`,
-      });
-      
-      console.log('Webhook response details:', data?.response);
-    } catch (error) {
-      console.error('Error sending webhook:', error);
-      toast({
-        title: "Line items saved to database",
-        description: "Job saved locally but webhook may have failed. Check console for details.",
-        variant: "destructive"
-      });
-    }
-    
-    setShowLineItemDialog(false);
-    setEditingLineItems([]);
-  };
-
-  const filteredAndSortedJobs = useMemo(() => {
-    let filtered = jobs;
-
-    if (paymentTypeFilter !== 'all') {
-      filtered = filtered.filter(job => job.paymentType === paymentTypeFilter);
-    }
-
-    if (searchQuery) {
-      filtered = filtered.filter(job =>
-        job.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.jobNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.rep.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    filtered.sort((a, b) => {
-      let aVal, bVal;
-      
-      switch (sortBy) {
-        case 'installDate':
-          aVal = new Date(a.installDate);
-          bVal = new Date(b.installDate);
-          break;
-        case 'client':
-          aVal = a.client.toLowerCase();
-          bVal = b.client.toLowerCase();
-          break;
-        case 'leadSoldFor':
-          aVal = a.leadSoldFor;
-          bVal = b.leadSoldFor;
-          break;
-        default:
-          return 0;
-      }
-      
-      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [jobs, paymentTypeFilter, searchQuery, sortBy, sortOrder]);
-
-  const toggleSort = (column: 'installDate' | 'client' | 'leadSoldFor') => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-  };
-
-  const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))].filter(type => type && type.trim() !== '');
+  // Mobile form component
+  const JobForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="customerName">Customer Name</Label>
+        <Input
+          id="customerName"
+          value={formData.customerName}
+          onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
+          required
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="jobDescription">Job Description</Label>
+        <Input
+          id="jobDescription"
+          value={formData.jobDescription}
+          onChange={(e) => setFormData(prev => ({ ...prev, jobDescription: e.target.value }))}
+          required
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="amount">Amount ($)</Label>
+        <Input
+          id="amount"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.amount}
+          onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+          required
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="date">Date</Label>
+        <Input
+          id="date"
+          type="date"
+          value={formData.date}
+          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+          required
+          className="mt-1"
+        />
+      </div>
+    </form>
+  );
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
+      <div className={`${isMobile ? 'px-4' : 'max-w-7xl mx-auto px-6'} space-y-6`}>
+        {/* Header Actions */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Jobs Sold</h1>
-            <p className="text-muted-foreground">
-              Manage completed and in-progress jobs
-            </p>
+            <h2 className="text-2xl font-bold">Jobs Sold</h2>
+            <p className="text-muted-foreground">Manage your completed jobs and track revenue</p>
           </div>
-          <Button onClick={fetchJobsData} disabled={loading || !profile?.rep_alias}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Fetch Jobs Data
-          </Button>
+          
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={fetchJobsData} 
+              disabled={loading}
+              variant="outline"
+              className={`${isMobile ? 'flex-1' : ''}`}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+              {loading ? "Loading..." : "Refresh"}
+            </Button>
+            
+            {/* Mobile Drawer vs Desktop Dialog */}
+            {isMobile ? (
+              <Drawer open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DrawerTrigger asChild>
+                  <Button onClick={handleAddNew} className="flex-1">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Job
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DrawerTitle>
+                    <DrawerDescription>
+                      {editingJob ? 'Update job details' : 'Enter details for the new job'}
+                    </DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4">
+                    <JobForm />
+                  </div>
+                  <DrawerFooter>
+                    <Button type="submit" onClick={handleSubmit}>
+                      {editingJob ? 'Update Job' : 'Add Job'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                      Cancel
+                    </Button>
+                  </DrawerFooter>
+                </DrawerContent>
+              </Drawer>
+            ) : (
+              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={handleAddNew}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Job
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
+                    <DialogDescription>
+                      {editingJob ? 'Update job details' : 'Enter details for the new job'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <JobForm />
+                  <DialogFooter>
+                    <Button type="submit" onClick={handleSubmit}>
+                      {editingJob ? 'Update Job' : 'Add Job'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                      Cancel
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters & Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="search">Search</Label>
-                <Input
-                  id="search"
-                  placeholder="Search by client, job number, or rep..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="payment-filter">Payment Type</Label>
-                <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Payment Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Payment Types</SelectItem>
-                    {uniquePaymentTypes.map(type => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredAndSortedJobs.length}</div>
+              <div className="text-2xl font-bold">{jobs.length}</div>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Finance Jobs</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {filteredAndSortedJobs.filter(job => job.paymentType === 'Finance').length}
-              </div>
+              <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Cash Jobs</CardTitle>
+              <CardTitle className="text-sm font-medium">Average Job Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {filteredAndSortedJobs.filter(job => job.paymentType === 'Cash').length}
+              <div className="text-2xl font-bold">
+                ${jobs.length > 0 ? (totalAmount / jobs.length).toLocaleString() : '0'}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Jobs Table */}
+        {/* Jobs Display */}
         <Card>
           <CardHeader>
-            <CardTitle>Jobs ({filteredAndSortedJobs.length})</CardTitle>
+            <CardTitle>Your Jobs</CardTitle>
             <CardDescription>
-              Click on a job to edit details or manage line items
+              Jobs linked to your email: {user.email}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('installDate')}
-                    >
-                      Install Date <ArrowUpDown className="ml-1 h-3 w-3 inline" />
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('client')}
-                    >
-                      Client <ArrowUpDown className="ml-1 h-3 w-3 inline" />
-                    </TableHead>
-                     <TableHead>Job Number</TableHead>
-                     <TableHead>Rep</TableHead>
-                     <TableHead 
-                       className="cursor-pointer"
-                       onClick={() => toggleSort('leadSoldFor')}
-                     >
-                       Price <ArrowUpDown className="ml-1 h-3 w-3 inline" />
-                     </TableHead>
-                     <TableHead>Payment Type</TableHead>
-                     <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSortedJobs.map((job) => (
-                    <TableRow key={job.id}>
-                       <TableCell>
-                         {new Date(job.installDate).toLocaleDateString()}
-                       </TableCell>
-                       <TableCell>
-                         {job.client}
-                       </TableCell>
-                       <TableCell>
-                         {job.jobNumber}
-                       </TableCell>
-                       <TableCell>
-                         {job.rep}
-                       </TableCell>
-                       <TableCell>
-                         {`$${job.leadSoldFor.toLocaleString()}`}
-                       </TableCell>
-                       <TableCell>
-                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                           job.paymentType === 'Cash' ? 'text-green-600 bg-green-50' :
-                           job.paymentType === 'Finance' ? 'text-blue-600 bg-blue-50' :
-                           'text-gray-600 bg-gray-50'
-                         }`}>
-                           {job.paymentType}
-                         </span>
-                       </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant={job.lineItemsLocked ? "outline" : "default"} 
-                              onClick={() => handleEditLineItems(job)}
-                              disabled={job.lineItemsLocked}
-                            >
-                              {job.lineItemsLocked ? (
-                                <>
-                                  <span className="text-green-600">✓</span> 
-                                  <span className="ml-1">Completed</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Edit Line Items
-                                </>
-                              )}
-                            </Button>
-                           </div>
-                         {job.lineItems && job.lineItems.length > 0 && (
-                           <div className="mt-2 p-2 bg-muted rounded text-xs">
-                             <strong>Line Items:</strong>
-                             <div className="mt-1">
-                               {job.lineItems.map((item, index) => (
-                                 <div key={index} className="flex justify-between">
-                                   <span>{item.productName}</span>
-                                   <span>{item.quantity}x ${item.unitPrice} = ${item.total}</span>
-                                 </div>
-                               ))}
-                               <div className="border-t pt-1 mt-1 font-semibold">
-                                 Total: ${job.lineItems.reduce((sum, item) => sum + item.total, 0)}
-                               </div>
-                             </div>
-                           </div>
-                         )}
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                 </TableBody>
-               </Table>
-            </div>
+            {jobs.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-lg mb-2">No jobs found</p>
+                <p className="text-sm text-muted-foreground">
+                  Add your first job to get started
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile Card View */}
+                {isMobile ? (
+                  <div className="space-y-3">
+                    {jobs.map((job, index) => (
+                      <Card key={job.id || index} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-sm truncate mb-1">
+                                {job.customerName}
+                              </h3>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {job.jobDescription}
+                              </p>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 ml-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleEdit(job)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => handleDelete(job)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Amount:</span>
+                              <span className="ml-1 font-medium">${job.amount.toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Date:</span>
+                              <span className="ml-1 font-medium">{job.date}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  /* Desktop Table View */
+                  <div className="rounded-lg border overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Customer</th>
+                          <th className="px-4 py-3 text-left font-medium">Description</th>
+                          <th className="px-4 py-3 text-left font-medium">Amount</th>
+                          <th className="px-4 py-3 text-left font-medium">Date</th>
+                          <th className="px-4 py-3 text-left font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {jobs.map((job, index) => (
+                          <tr key={job.id || index} className="border-t hover:bg-muted/30">
+                            <td className="px-4 py-3">{job.customerName}</td>
+                            <td className="px-4 py-3">{job.jobDescription}</td>
+                            <td className="px-4 py-3 font-medium">${job.amount.toLocaleString()}</td>
+                            <td className="px-4 py-3">{job.date}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(job)}
+                                >
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(job)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
-
-        {/* Line Items Dialog */}
-        <Dialog open={showLineItemDialog} onOpenChange={setShowLineItemDialog}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Line Items - {editedJobData?.client}</DialogTitle>
-              <DialogDescription>
-                Add, edit, or remove line items for this job
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <Button onClick={addLineItem} className="mb-4">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Line Item
-              </Button>
-              
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {editingLineItems.map((item, index) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Select
-                          value={item.productId}
-                          onValueChange={(value) => updateLineItem(index, 'productId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name} (${product.unit_price})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                          min="1"
-                        />
-                      </TableCell>
-                      <TableCell>${item.unitPrice}</TableCell>
-                      <TableCell>${item.total}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeLineItem(index)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              
-              <div className="text-right">
-                <strong>
-                  Total: ${editingLineItems.reduce((sum, item) => sum + item.total, 0).toLocaleString()}
-                </strong>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowLineItemDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={saveLineItems}>
-                Save Line Items
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
