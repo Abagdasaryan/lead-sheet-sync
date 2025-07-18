@@ -81,7 +81,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       
       const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { 
-          userEmail: user.email,
           userRepSlug: profile.rep_alias
         }
       });
