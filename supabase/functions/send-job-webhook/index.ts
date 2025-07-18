@@ -142,8 +142,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Prepare webhook payload with new schema
-    const payload = transformedLineItems;
+    // Prepare webhook payload with job header data and line items
+    const payload = {
+      installDate: jobData.installDate,
+      jobNumber: jobData.jobNumber,
+      lineItems: transformedLineItems
+    };
 
     console.log('Sending webhook to n8n:', webhookUrl);
     console.log('Payload:', JSON.stringify(payload, null, 2));
