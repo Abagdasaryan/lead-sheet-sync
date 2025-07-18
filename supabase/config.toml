@@ -1,1 +1,13 @@
 project_id = "kjdzrttanzlafyuwgiuo"
+
+[functions.fetch-sheet-data]
+verify_jwt = true
+
+[functions.fetch-jobs-sold-data]
+verify_jwt = true
+
+[functions.send-job-webhook]
+verify_jwt = true
+
+[functions.update-sheet-data]
+verify_jwt = true
