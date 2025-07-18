@@ -41,8 +41,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const { toast } = useToast();
 
-  // Test webhook URL
-  const TEST_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
+  // Production webhook URL
+  const PRODUCTION_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b';
 
   const fetchProfile = async () => {
     try {
@@ -316,13 +316,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     
     try {
       console.log('=== FRONTEND DEBUG ===');
-      console.log('Sending webhook with URL:', TEST_WEBHOOK_URL);
+      console.log('Sending webhook with URL:', PRODUCTION_WEBHOOK_URL);
       console.log('Job data:', updatedJob);
       console.log('Line items:', editingLineItems);
       
       const { data, error } = await supabase.functions.invoke('send-job-webhook', {
         body: {
-          webhookUrl: TEST_WEBHOOK_URL,
+          webhookUrl: PRODUCTION_WEBHOOK_URL,
           jobData: updatedJob,
           lineItems: editingLineItems
         }
