@@ -15,19 +15,33 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have the required tokens from the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      toast({
-        title: "Invalid reset link",
-        description: "This password reset link is invalid or has expired.",
-        variant: "destructive",
-      });
-      navigate("/auth");
-    }
-  }, [searchParams, navigate, toast]);
+    // Handle the auth callback for password reset
+    const handleAuthCallback = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        toast({
+          title: "Invalid reset link",
+          description: "This password reset link is invalid or has expired.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // Check if we have a session but haven't confirmed email change yet
+      if (!data.session) {
+        toast({
+          title: "Invalid reset link", 
+          description: "This password reset link is invalid or has expired.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+      }
+    };
+
+    handleAuthCallback();
+  }, [navigate, toast]);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +77,9 @@ const ResetPassword = () => {
         title: "Password updated successfully!",
         description: "You can now login with your new password.",
       });
+      
+      // Sign out the user so they can login with new password
+      await supabase.auth.signOut();
       
       // Redirect to login page
       navigate("/auth");
