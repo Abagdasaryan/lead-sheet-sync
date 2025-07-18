@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      job_line_items: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          total: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_line_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_sold"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs_sold: {
+        Row: {
+          client: string
+          created_at: string
+          id: string
+          install_date: string
+          job_number: string
+          lead_sold_for: number
+          payment_type: string
+          rep: string
+          sf_order_id: string
+          updated_at: string
+          user_id: string
+          webhook_sent_at: string | null
+        }
+        Insert: {
+          client: string
+          created_at?: string
+          id?: string
+          install_date: string
+          job_number: string
+          lead_sold_for: number
+          payment_type: string
+          rep: string
+          sf_order_id: string
+          updated_at?: string
+          user_id: string
+          webhook_sent_at?: string | null
+        }
+        Update: {
+          client?: string
+          created_at?: string
+          id?: string
+          install_date?: string
+          job_number?: string
+          lead_sold_for?: number
+          payment_type?: string
+          rep?: string
+          sf_order_id?: string
+          updated_at?: string
+          user_id?: string
+          webhook_sent_at?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string | null

@@ -22,15 +22,16 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [editedJobData, setEditedJobData] = useState<Job | null>(null);
-  const [sortBy, setSortBy] = useState<'installDate' | 'client' | 'rep' | 'leadSoldFor'>('installDate');
+  const [sortBy, setSortBy] = useState<'installDate' | 'client' | 'leadSoldFor'>('installDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [repFilter, setRepFilter] = useState<string>('all');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editingLineItems, setEditingLineItems] = useState<JobLineItem[]>([]);
   const [showLineItemDialog, setShowLineItemDialog] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState<string>('');
   const { toast } = useToast();
+
+  // Test webhook URL
+  const TEST_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
 
   // Mock data for now - will be replaced with sheet data
   const mockJobs: Job[] = [
@@ -160,34 +161,27 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     ));
     
     // Automatically send webhook after saving line items
-    if (webhookUrl) {
-      try {
-        const { data, error } = await supabase.functions.invoke('send-job-webhook', {
-          body: {
-            webhookUrl,
-            jobData: updatedJob,
-            lineItems: editingLineItems
-          }
-        });
+    try {
+      const { data, error } = await supabase.functions.invoke('send-job-webhook', {
+        body: {
+          webhookUrl: TEST_WEBHOOK_URL,
+          jobData: updatedJob,
+          lineItems: editingLineItems
+        }
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        toast({
-          title: "Line items saved and sent to n8n",
-          description: "Job line items have been saved and sent to your webhook successfully.",
-        });
-      } catch (error) {
-        console.error('Error sending webhook:', error);
-        toast({
-          title: "Line items saved",
-          description: "Line items saved but failed to send webhook to n8n.",
-          variant: "destructive"
-        });
-      }
-    } else {
+      toast({
+        title: "Line items saved and sent to n8n",
+        description: "Job line items have been saved and sent to your webhook successfully.",
+      });
+    } catch (error) {
+      console.error('Error sending webhook:', error);
       toast({
         title: "Line items saved",
-        description: "Job line items have been saved successfully. Add webhook URL to enable n8n integration.",
+        description: "Line items saved but failed to send webhook to n8n.",
+        variant: "destructive"
       });
     }
     
@@ -195,51 +189,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     setEditingLineItems([]);
   };
 
-  const sendWebhook = async (job: Job) => {
-    if (!webhookUrl) {
-      toast({
-        title: "Webhook URL Required",
-        description: "Please enter your n8n webhook URL in the settings.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-job-webhook', {
-        body: {
-          webhookUrl,
-          jobData: job,
-          lineItems: job.lineItems || []
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Webhook sent",
-        description: "Job data has been sent to n8n successfully.",
-      });
-    } catch (error) {
-      console.error('Error sending webhook:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send webhook to n8n.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filteredAndSortedJobs = useMemo(() => {
     let filtered = jobs;
-
-    // Filter by rep
-    if (repFilter !== 'all') {
-      filtered = filtered.filter(job => job.rep === repFilter);
-    }
 
     // Filter by payment type
     if (paymentTypeFilter !== 'all') {
@@ -268,10 +219,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           aVal = a.client.toLowerCase();
           bVal = b.client.toLowerCase();
           break;
-        case 'rep':
-          aVal = a.rep.toLowerCase();
-          bVal = b.rep.toLowerCase();
-          break;
         case 'leadSoldFor':
           aVal = a.leadSoldFor;
           bVal = b.leadSoldFor;
@@ -286,9 +233,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     });
 
     return filtered;
-  }, [jobs, repFilter, paymentTypeFilter, searchQuery, sortBy, sortOrder]);
+  }, [jobs, paymentTypeFilter, searchQuery, sortBy, sortOrder]);
 
-  const toggleSort = (column: 'installDate' | 'client' | 'rep' | 'leadSoldFor') => {
+  const toggleSort = (column: 'installDate' | 'client' | 'leadSoldFor') => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -297,8 +244,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   };
 
-  // Get unique reps and payment types for filters
-  const uniqueReps = [...new Set(jobs.map(job => job.rep))];
+  // Get unique payment types for filters
   const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))];
 
   return (
@@ -324,7 +270,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             <CardTitle>Filters & Settings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="search">Search</Label>
                 <Input
@@ -333,20 +279,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label htmlFor="rep-filter">Rep</Label>
-                <Select value={repFilter} onValueChange={setRepFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Reps" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Reps</SelectItem>
-                    {uniqueReps.map(rep => (
-                      <SelectItem key={rep} value={rep}>{rep}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <div>
                 <Label htmlFor="payment-filter">Payment Type</Label>
@@ -362,22 +294,12 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="webhook-url">n8n Webhook URL</Label>
-                <Input
-                  id="webhook-url"
-                  placeholder="https://your-n8n-instance.com/webhook/..."
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  type="url"
-                />
-              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
@@ -403,18 +325,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
                 {filteredAndSortedJobs.filter(job => job.paymentType === 'Cash').length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
-                ${filteredAndSortedJobs
-                  .reduce((sum, job) => sum + job.leadSoldFor, 0)
-                  .toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -445,22 +355,16 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                     >
                       Client <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                     </TableHead>
-                    <TableHead>Job Number</TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('rep')}
-                    >
-                      Rep <ArrowUpDown className="ml-1 h-3 w-3 inline" />
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => toggleSort('leadSoldFor')}
-                    >
-                      Lead Sold For <ArrowUpDown className="ml-1 h-3 w-3 inline" />
-                    </TableHead>
-                    <TableHead>Payment Type</TableHead>
-                    <TableHead>SF Order ID</TableHead>
-                    <TableHead>Actions</TableHead>
+                     <TableHead>Job Number</TableHead>
+                     <TableHead>Rep</TableHead>
+                     <TableHead 
+                       className="cursor-pointer"
+                       onClick={() => toggleSort('leadSoldFor')}
+                     >
+                       Lead Sold For <ArrowUpDown className="ml-1 h-3 w-3 inline" />
+                     </TableHead>
+                     <TableHead>Payment Type</TableHead>
+                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -489,9 +393,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                          }`}>
                            {job.paymentType}
                          </span>
-                       </TableCell>
-                       <TableCell>
-                         {job.sfOrderId}
                        </TableCell>
                        <TableCell>
                          <div className="flex space-x-2">
