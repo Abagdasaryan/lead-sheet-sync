@@ -121,7 +121,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             id: `job-${index}`,
             client: row.client || '',
             jobNumber: row.job_number || '',
-            rep: profile.rep_alias || '',
+            rep: row.rep || '',
             leadSoldFor: parseFloat(row.lead_sold_for?.replace(/[$,]/g, '') || '0') || 0,
             paymentType: row.payment_type || '',
             installDate: row.install_date || '',
