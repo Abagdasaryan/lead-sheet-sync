@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCw, ArrowUpDown, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { Job, JobLineItem, Product } from "@/types/products";
 import { supabase } from "@/integrations/supabase/client";
+import { Send } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -22,31 +23,37 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [loading, setLoading] = useState(false);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [editedJobData, setEditedJobData] = useState<Job | null>(null);
-  const [sortBy, setSortBy] = useState<'date' | 'client' | 'status' | 'total'>('date');
+  const [sortBy, setSortBy] = useState<'installDate' | 'client' | 'rep' | 'leadSoldFor'>('installDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [repFilter, setRepFilter] = useState<string>('all');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editingLineItems, setEditingLineItems] = useState<JobLineItem[]>([]);
   const [showLineItemDialog, setShowLineItemDialog] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string>('');
   const { toast } = useToast();
 
   // Mock data for now - will be replaced with sheet data
   const mockJobs: Job[] = [
     {
       id: "1",
-      date: "7/16/2025",
-      clientName: "John Smith",
-      appointmentName: "PA 19063 - John Smith Gutter Installation",
-      status: "Completed",
-      totalAmount: "$3,500"
+      client: "ALEXIS OSBORNE",
+      jobNumber: "APG-01574",
+      rep: "Phil Brooks",
+      leadSoldFor: 1320,
+      paymentType: "Finance",
+      installDate: "2025-07-19",
+      sfOrderId: "801RP00000YxqlQYAR"
     },
     {
       id: "2", 
-      date: "7/15/2025",
-      clientName: "Sarah Johnson",
-      appointmentName: "NJ 08901 - Sarah Johnson Gutter Repair",
-      status: "In Progress",
-      totalAmount: "$1,250"
+      client: "JOHN SMITH",
+      jobNumber: "APG-01575",
+      rep: "Sarah Johnson",
+      leadSoldFor: 2450,
+      paymentType: "Cash",
+      installDate: "2025-07-20",
+      sfOrderId: "801RP00000YxqlRYAR"
     }
   ];
 
@@ -126,7 +133,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     setEditedJobData(null);
   };
 
-  const handleFieldChange = (field: string, value: string) => {
+  const handleFieldChange = (field: string, value: string | number) => {
     if (!editedJobData) return;
     setEditedJobData({
       ...editedJobData,
@@ -174,14 +181,14 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     setEditingLineItems(editingLineItems.filter((_, i) => i !== index));
   };
 
-  const saveLineItems = () => {
+  const saveLineItems = async () => {
     if (!editedJobData) return;
     
     const totalAmount = editingLineItems.reduce((sum, item) => sum + item.total, 0);
     const updatedJob = {
       ...editedJobData,
       lineItems: editingLineItems,
-      totalAmount: `$${totalAmount.toLocaleString()}`
+      leadSoldFor: totalAmount // Update the lead sold amount with line items total
     };
     
     setJobs(jobs.map(job => 
@@ -196,19 +203,63 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     });
   };
 
+  const sendWebhook = async (job: Job) => {
+    if (!webhookUrl) {
+      toast({
+        title: "Webhook URL Required",
+        description: "Please enter your n8n webhook URL in the settings.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-job-webhook', {
+        body: {
+          webhookUrl,
+          jobData: job,
+          lineItems: job.lineItems || []
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Webhook sent",
+        description: "Job data has been sent to n8n successfully.",
+      });
+    } catch (error) {
+      console.error('Error sending webhook:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send webhook to n8n.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredAndSortedJobs = useMemo(() => {
     let filtered = jobs;
 
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(job => job.status === statusFilter);
+    // Filter by rep
+    if (repFilter !== 'all') {
+      filtered = filtered.filter(job => job.rep === repFilter);
+    }
+
+    // Filter by payment type
+    if (paymentTypeFilter !== 'all') {
+      filtered = filtered.filter(job => job.paymentType === paymentTypeFilter);
     }
 
     // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(job =>
-        job.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.appointmentName.toLowerCase().includes(searchQuery.toLowerCase())
+        job.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.jobNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.rep.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -217,21 +268,21 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       let aVal, bVal;
       
       switch (sortBy) {
-        case 'date':
-          aVal = new Date(a.date);
-          bVal = new Date(b.date);
+        case 'installDate':
+          aVal = new Date(a.installDate);
+          bVal = new Date(b.installDate);
           break;
         case 'client':
-          aVal = a.clientName.toLowerCase();
-          bVal = b.clientName.toLowerCase();
+          aVal = a.client.toLowerCase();
+          bVal = b.client.toLowerCase();
           break;
-        case 'status':
-          aVal = a.status.toLowerCase();
-          bVal = b.status.toLowerCase();
+        case 'rep':
+          aVal = a.rep.toLowerCase();
+          bVal = b.rep.toLowerCase();
           break;
-        case 'total':
-          aVal = parseFloat(a.totalAmount.replace(/[$,]/g, ''));
-          bVal = parseFloat(b.totalAmount.replace(/[$,]/g, ''));
+        case 'leadSoldFor':
+          aVal = a.leadSoldFor;
+          bVal = b.leadSoldFor;
           break;
         default:
           return 0;
@@ -243,22 +294,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     });
 
     return filtered;
-  }, [jobs, statusFilter, searchQuery, sortBy, sortOrder]);
+  }, [jobs, repFilter, paymentTypeFilter, searchQuery, sortBy, sortOrder]);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'text-green-600 bg-green-50';
-      case 'in progress':
-        return 'text-blue-600 bg-blue-50';
-      case 'cancelled':
-        return 'text-red-600 bg-red-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const toggleSort = (column: 'date' | 'client' | 'status' | 'total') => {
+  const toggleSort = (column: 'installDate' | 'client' | 'rep' | 'leadSoldFor') => {
     if (sortBy === column) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -266,6 +304,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       setSortOrder('desc');
     }
   };
+
+  // Get unique reps and payment types for filters
+  const uniqueReps = [...new Set(jobs.map(job => job.rep))];
+  const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))];
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -287,46 +329,56 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         {/* Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Filters</CardTitle>
+            <CardTitle>Filters & Settings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="search">Search</Label>
                 <Input
                   id="search"
-                  placeholder="Search by client or appointment..."
+                  placeholder="Search by client, job number, or rep..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="status-filter">Status</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Label htmlFor="rep-filter">Rep</Label>
+                <Select value={repFilter} onValueChange={setRepFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="All Statuses" />
+                    <SelectValue placeholder="All Reps" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    <SelectItem value="all">All Reps</SelectItem>
+                    {uniqueReps.map(rep => (
+                      <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="sort-by">Sort By</Label>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <Label htmlFor="payment-filter">Payment Type</Label>
+                <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="All Payment Types" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="date">Date</SelectItem>
-                    <SelectItem value="client">Client Name</SelectItem>
-                    <SelectItem value="status">Status</SelectItem>
-                    <SelectItem value="total">Total Amount</SelectItem>
+                    <SelectItem value="all">All Payment Types</SelectItem>
+                    {uniquePaymentTypes.map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label htmlFor="webhook-url">n8n Webhook URL</Label>
+                <Input
+                  id="webhook-url"
+                  placeholder="https://your-n8n-instance.com/webhook/..."
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  type="url"
+                />
               </div>
             </div>
           </CardContent>
@@ -344,21 +396,21 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">Finance Jobs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {filteredAndSortedJobs.filter(job => job.status === 'Completed').length}
+              <div className="text-2xl font-bold text-blue-600">
+                {filteredAndSortedJobs.filter(job => job.paymentType === 'Finance').length}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+              <CardTitle className="text-sm font-medium">Cash Jobs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {filteredAndSortedJobs.filter(job => job.status === 'In Progress').length}
+              <div className="text-2xl font-bold text-green-600">
+                {filteredAndSortedJobs.filter(job => job.paymentType === 'Cash').length}
               </div>
             </CardContent>
           </Card>
@@ -369,8 +421,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">
                 ${filteredAndSortedJobs
-                  .filter(job => job.status === 'Completed')
-                  .reduce((sum, job) => sum + parseFloat(job.totalAmount.replace(/[$,]/g, '')), 0)
+                  .reduce((sum, job) => sum + job.leadSoldFor, 0)
                   .toLocaleString()}
               </div>
             </CardContent>
@@ -392,9 +443,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   <TableRow>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => toggleSort('date')}
+                      onClick={() => toggleSort('installDate')}
                     >
-                      Date <ArrowUpDown className="ml-1 h-3 w-3 inline" />
+                      Install Date <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
@@ -402,19 +453,21 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                     >
                       Client <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                     </TableHead>
-                    <TableHead>Appointment</TableHead>
+                    <TableHead>Job Number</TableHead>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => toggleSort('status')}
+                      onClick={() => toggleSort('rep')}
                     >
-                      Status <ArrowUpDown className="ml-1 h-3 w-3 inline" />
+                      Rep <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => toggleSort('total')}
+                      onClick={() => toggleSort('leadSoldFor')}
                     >
-                      Total <ArrowUpDown className="ml-1 h-3 w-3 inline" />
+                      Lead Sold For <ArrowUpDown className="ml-1 h-3 w-3 inline" />
                     </TableHead>
+                    <TableHead>Payment Type</TableHead>
+                    <TableHead>SF Order ID</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -424,66 +477,97 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                       <TableCell>
                         {editingJobId === job.id ? (
                           <Input
-                            value={editedJobData?.date || ''}
-                            onChange={(e) => handleFieldChange('date', e.target.value)}
-                            className="min-w-[100px]"
+                            type="date"
+                            value={editedJobData?.installDate || ''}
+                            onChange={(e) => handleFieldChange('installDate', e.target.value)}
+                            className="min-w-[120px]"
                           />
                         ) : (
-                          job.date
+                          new Date(job.installDate).toLocaleDateString()
                         )}
                       </TableCell>
                       <TableCell>
                         {editingJobId === job.id ? (
                           <Input
-                            value={editedJobData?.clientName || ''}
-                            onChange={(e) => handleFieldChange('clientName', e.target.value)}
+                            value={editedJobData?.client || ''}
+                            onChange={(e) => handleFieldChange('client', e.target.value)}
                             className="min-w-[150px]"
                           />
                         ) : (
-                          job.clientName
+                          job.client
                         )}
                       </TableCell>
                       <TableCell>
                         {editingJobId === job.id ? (
                           <Input
-                            value={editedJobData?.appointmentName || ''}
-                            onChange={(e) => handleFieldChange('appointmentName', e.target.value)}
-                            className="min-w-[200px]"
+                            value={editedJobData?.jobNumber || ''}
+                            onChange={(e) => handleFieldChange('jobNumber', e.target.value)}
+                            className="min-w-[120px]"
                           />
                         ) : (
-                          job.appointmentName
+                          job.jobNumber
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editingJobId === job.id ? (
+                          <Input
+                            value={editedJobData?.rep || ''}
+                            onChange={(e) => handleFieldChange('rep', e.target.value)}
+                            className="min-w-[120px]"
+                          />
+                        ) : (
+                          job.rep
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editingJobId === job.id ? (
+                          <Input
+                            type="number"
+                            value={editedJobData?.leadSoldFor || ''}
+                            onChange={(e) => handleFieldChange('leadSoldFor', parseFloat(e.target.value) || 0)}
+                            className="min-w-[100px]"
+                          />
+                        ) : (
+                          `$${job.leadSoldFor.toLocaleString()}`
                         )}
                       </TableCell>
                       <TableCell>
                         {editingJobId === job.id ? (
                           <Select
-                            value={editedJobData?.status || ''}
-                            onValueChange={(value) => handleFieldChange('status', value)}
+                            value={editedJobData?.paymentType || ''}
+                            onValueChange={(value) => handleFieldChange('paymentType', value)}
                           >
-                            <SelectTrigger className="min-w-[120px]">
+                            <SelectTrigger className="min-w-[100px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Cancelled">Cancelled</SelectItem>
+                              {uniquePaymentTypes.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                              <SelectItem value="Cash">Cash</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Check">Check</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                            {job.status}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            job.paymentType === 'Cash' ? 'text-green-600 bg-green-50' :
+                            job.paymentType === 'Finance' ? 'text-blue-600 bg-blue-50' :
+                            'text-gray-600 bg-gray-50'
+                          }`}>
+                            {job.paymentType}
                           </span>
                         )}
                       </TableCell>
                       <TableCell>
                         {editingJobId === job.id ? (
                           <Input
-                            value={editedJobData?.totalAmount || ''}
-                            onChange={(e) => handleFieldChange('totalAmount', e.target.value)}
-                            className="min-w-[100px]"
+                            value={editedJobData?.sfOrderId || ''}
+                            onChange={(e) => handleFieldChange('sfOrderId', e.target.value)}
+                            className="min-w-[150px]"
                           />
                         ) : (
-                          job.totalAmount
+                          job.sfOrderId
                         )}
                       </TableCell>
                       <TableCell>
@@ -508,6 +592,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                               <Button size="sm" variant="secondary" onClick={() => handleEditLineItems(job)}>
                                 Line Items
                               </Button>
+                              <Button size="sm" variant="default" onClick={() => sendWebhook(job)}>
+                                <Send className="h-3 w-3 mr-1" />
+                                Send to n8n
+                              </Button>
                             </>
                           )}
                         </div>
@@ -524,7 +612,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         <Dialog open={showLineItemDialog} onOpenChange={setShowLineItemDialog}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Line Items - {editedJobData?.clientName}</DialogTitle>
+              <DialogTitle>Edit Line Items - {editedJobData?.client}</DialogTitle>
               <DialogDescription>
                 Add, edit, or remove line items for this job
               </DialogDescription>

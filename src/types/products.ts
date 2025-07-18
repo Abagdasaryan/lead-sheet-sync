@@ -19,10 +19,12 @@ export interface JobLineItem {
 
 export interface Job {
   id: string;
-  date: string;
-  clientName: string;
-  appointmentName: string;
-  status: string;
-  totalAmount: string;
+  client: string;
+  jobNumber: string;
+  rep: string;
+  leadSoldFor: number;
+  paymentType: string;
+  installDate: string;
+  sfOrderId: string;
   lineItems?: JobLineItem[];
 }
