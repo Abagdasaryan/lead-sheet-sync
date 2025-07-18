@@ -80,9 +80,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
       console.log('About to call fetch-jobs-sold-data edge function...');
       
+      const requestId = Date.now();
+      console.log('REQUEST ID:', requestId, 'calling fetch-jobs-sold-data');
+      
       const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { 
-          userRepSlug: profile.rep_alias
+          userRepSlug: profile.rep_alias,
+          requestId: requestId
         }
       });
 
