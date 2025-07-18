@@ -21,7 +21,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [editedJobData, setEditedJobData] = useState<Job | null>(null);
   const [sortBy, setSortBy] = useState<'installDate' | 'client' | 'rep' | 'leadSoldFor'>('installDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -96,50 +95,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }, 1000);
   };
 
-  const handleEdit = (job: Job) => {
-    setEditingJobId(job.id);
-    setEditedJobData(job);
-  };
-
-  const handleSave = async () => {
-    if (!editedJobData) return;
-    
-    setLoading(true);
-    try {
-      // TODO: Implement save to sheet
-      setJobs(jobs.map(job => 
-        job.id === editedJobData.id ? editedJobData : job
-      ));
-      
-      setEditingJobId(null);
-      setEditedJobData(null);
-      toast({
-        title: "Job updated",
-        description: "Job data has been saved successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save job data.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setEditingJobId(null);
-    setEditedJobData(null);
-  };
-
-  const handleFieldChange = (field: string, value: string | number) => {
-    if (!editedJobData) return;
-    setEditedJobData({
-      ...editedJobData,
-      [field]: value
-    });
-  };
 
   const handleEditLineItems = (job: Job) => {
     if (job.lineItemsLocked) {
@@ -511,132 +466,44 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                 <TableBody>
                   {filteredAndSortedJobs.map((job) => (
                     <TableRow key={job.id}>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            type="date"
-                            value={editedJobData?.installDate || ''}
-                            onChange={(e) => handleFieldChange('installDate', e.target.value)}
-                            className="min-w-[120px]"
-                          />
-                        ) : (
-                          new Date(job.installDate).toLocaleDateString()
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            value={editedJobData?.client || ''}
-                            onChange={(e) => handleFieldChange('client', e.target.value)}
-                            className="min-w-[150px]"
-                          />
-                        ) : (
-                          job.client
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            value={editedJobData?.jobNumber || ''}
-                            onChange={(e) => handleFieldChange('jobNumber', e.target.value)}
-                            className="min-w-[120px]"
-                          />
-                        ) : (
-                          job.jobNumber
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            value={editedJobData?.rep || ''}
-                            onChange={(e) => handleFieldChange('rep', e.target.value)}
-                            className="min-w-[120px]"
-                          />
-                        ) : (
-                          job.rep
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            type="number"
-                            value={editedJobData?.leadSoldFor || ''}
-                            onChange={(e) => handleFieldChange('leadSoldFor', parseFloat(e.target.value) || 0)}
-                            className="min-w-[100px]"
-                          />
-                        ) : (
-                          `$${job.leadSoldFor.toLocaleString()}`
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Select
-                            value={editedJobData?.paymentType || ''}
-                            onValueChange={(value) => handleFieldChange('paymentType', value)}
-                          >
-                            <SelectTrigger className="min-w-[100px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {uniquePaymentTypes.map(type => (
-                                <SelectItem key={type} value={type}>{type}</SelectItem>
-                              ))}
-                              <SelectItem value="Cash">Cash</SelectItem>
-                              <SelectItem value="Finance">Finance</SelectItem>
-                              <SelectItem value="Check">Check</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            job.paymentType === 'Cash' ? 'text-green-600 bg-green-50' :
-                            job.paymentType === 'Finance' ? 'text-blue-600 bg-blue-50' :
-                            'text-gray-600 bg-gray-50'
-                          }`}>
-                            {job.paymentType}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingJobId === job.id ? (
-                          <Input
-                            value={editedJobData?.sfOrderId || ''}
-                            onChange={(e) => handleFieldChange('sfOrderId', e.target.value)}
-                            className="min-w-[150px]"
-                          />
-                        ) : (
-                          job.sfOrderId
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          {editingJobId === job.id ? (
-                            <>
-                              <Button size="sm" onClick={handleSave}>
-                                <Save className="h-3 w-3 mr-1" />
-                                Save
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={handleCancel}>
-                                <X className="h-3 w-3 mr-1" />
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => handleEdit(job)}>
-                                <Edit className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant={job.lineItemsLocked ? "outline" : "secondary"} 
-                                onClick={() => handleEditLineItems(job)}
-                                disabled={job.lineItemsLocked}
-                              >
-                                {job.lineItemsLocked ? "Line Items (Locked)" : "Line Items"}
-                              </Button>
-                            </>
-                          )}
-                         </div>
+                       <TableCell>
+                         {new Date(job.installDate).toLocaleDateString()}
+                       </TableCell>
+                       <TableCell>
+                         {job.client}
+                       </TableCell>
+                       <TableCell>
+                         {job.jobNumber}
+                       </TableCell>
+                       <TableCell>
+                         {job.rep}
+                       </TableCell>
+                       <TableCell>
+                         {`$${job.leadSoldFor.toLocaleString()}`}
+                       </TableCell>
+                       <TableCell>
+                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                           job.paymentType === 'Cash' ? 'text-green-600 bg-green-50' :
+                           job.paymentType === 'Finance' ? 'text-blue-600 bg-blue-50' :
+                           'text-gray-600 bg-gray-50'
+                         }`}>
+                           {job.paymentType}
+                         </span>
+                       </TableCell>
+                       <TableCell>
+                         {job.sfOrderId}
+                       </TableCell>
+                       <TableCell>
+                         <div className="flex space-x-2">
+                           <Button 
+                             size="sm" 
+                             variant={job.lineItemsLocked ? "outline" : "secondary"} 
+                             onClick={() => handleEditLineItems(job)}
+                             disabled={job.lineItemsLocked}
+                           >
+                             {job.lineItemsLocked ? "Line Items (Locked)" : "Line Items"}
+                           </Button>
+                          </div>
                          {/* Show line items if they exist */}
                          {job.lineItems && job.lineItems.length > 0 && (
                            <div className="mt-2 p-2 bg-muted rounded text-xs">
