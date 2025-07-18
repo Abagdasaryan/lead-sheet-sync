@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
         transformedLineItems = lineItems.map((item: any) => ({
           OrderId: jobData.sfOrderId,
           Product2Id: item.productId,
+          ProductName: item.productName,
           Quantity: item.quantity,
           UnitPrice: item.unitPrice,
           PricebookEntryId: null,
@@ -136,6 +137,7 @@ Deno.serve(async (req) => {
           return {
             OrderId: jobData.sfOrderId,
             Product2Id: product?.product2_id || item.productId,
+            ProductName: item.productName,
             Quantity: item.quantity,
             UnitPrice: product?.unit_price || item.unitPrice,
             PricebookEntryId: product?.pricebook2_id || null,
