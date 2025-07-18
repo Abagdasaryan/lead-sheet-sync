@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User, Session } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, ArrowUpDown, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { Job, JobLineItem, Product } from "@/types/products";
@@ -28,40 +28,40 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editingLineItems, setEditingLineItems] = useState<JobLineItem[]>([]);
   const [showLineItemDialog, setShowLineItemDialog] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const { toast } = useToast();
 
   // Test webhook URL
   const TEST_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
 
-  // Get session on component load
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+  interface Profile {
+    id: string;
+    user_id: string;
+    email: string;
+    rep_email: string | null;
+    rep_alias: string | null;
+    created_at: string;
+    updated_at: string;
+  }
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Fetch jobs data from Google Sheets
-  const fetchJobsData = useCallback(async () => {
-    if (!session?.user) return;
-    
+  const fetchProfile = async () => {
     try {
-      setLoading(true);
-      
-      const { data: profile } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('rep_alias')
-        .eq('user_id', session.user.id)
+        .select('*')
+        .eq('user_id', user.id)
         .single();
 
+      if (error) throw error;
+      setProfile(data);
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const fetchJobsData = async () => {
+    setLoading(true);
+    try {
       if (!profile?.rep_alias) {
         toast({
           title: "Error",
@@ -73,15 +73,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
       console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
       
-      const response = await supabase.functions.invoke('fetch-jobs-sold-data', {
+      const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { userRepSlug: profile.rep_alias }
       });
 
-      if (response.error) {
-        throw response.error;
-      }
+      if (error) throw error;
 
-      const jobsData = response.data?.rows || [];
+      const jobsData = data?.rows || [];
       console.log('Jobs sold data received:', jobsData);
       
       // Map the sheet data to Job format
@@ -97,17 +95,31 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       }));
       
       setJobs(mappedJobs);
-    } catch (error) {
+      toast({
+        title: "Data loaded",
+        description: `Found ${jobsData.length} jobs sold for rep ${profile.rep_alias}.`,
+      });
+    } catch (error: any) {
       console.error('Error fetching jobs data:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch jobs data",
+        description: error.message || "Failed to fetch jobs data",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [session?.user, supabase, toast]);
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [user.id]);
+
+  useEffect(() => {
+    if (profile) {
+      fetchJobsData();
+    }
+  }, [profile]);
 
   // Fetch products from Supabase
   const fetchProducts = async () => {
@@ -131,14 +143,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   useEffect(() => {
     fetchProducts();
-    if (session?.user) {
-      fetchJobsData();
-    }
-  }, [session?.user, fetchJobsData]);
+  }, []);
 
   const handleRefresh = async () => {
     fetchProducts();
-    fetchJobsData();
+    if (profile) {
+      await fetchJobsData();
+    }
     toast({
       title: "Data refreshed",
       description: "Jobs sold data has been updated.",
