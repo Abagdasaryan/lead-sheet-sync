@@ -106,10 +106,10 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Calculate 8 days ago
-    const eightDaysAgo = new Date();
-    eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
-    console.log('Eight days ago cutoff:', eightDaysAgo.toISOString());
+    // Calculate 7 days ago
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    console.log('Seven days ago cutoff:', sevenDaysAgo.toISOString());
 
     // Filter and process rows
     const filteredRows = rows
@@ -122,11 +122,11 @@ export default async function handler(req: Request): Promise<Response> {
           return false;
         }
 
-        // Check date filter (last 8 days)
+        // Check date filter (last 7 days)
         if (installDateStr) {
           try {
             const installDate = new Date(installDateStr);
-            if (installDate < eightDaysAgo) {
+            if (installDate < sevenDaysAgo) {
               return false;
             }
           } catch (error) {

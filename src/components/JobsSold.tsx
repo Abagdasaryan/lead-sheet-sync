@@ -99,23 +99,19 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('Jobs data length:', jobsData.length);
       console.log('Jobs data:', jobsData);
       
-      // Map the sheet data to Job format - fixing field mapping
+      // Map the sheet data to Job format - the edge function now returns the correct structure
       const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
         console.log('Processing row:', index, row);
         
-        // Parse the Last Price field to get numeric value
-        const priceString = row['Last Price'] || '0';
-        const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
-        
         const mappedJob = {
           id: `job-${index}`,
-          client: row['CLIENT NAME'] || '',
-          jobNumber: row['AppointmentName'] || '',
-          rep: profile.rep_alias || '',
-          leadSoldFor: priceValue,
-          paymentType: row['Status'] || '',
-          installDate: row['date'] || '',
-          sfOrderId: row['sfOrderId'] || ''
+          client: row.client || '',
+          jobNumber: row.jobNumber || '',
+          rep: row.rep || '',
+          leadSoldFor: row.leadSoldFor || 0,
+          paymentType: row.paymentType || '',
+          installDate: row.installDate || '',
+          sfOrderId: row.sfOrderId || ''
         };
         
         console.log('Mapped job:', mappedJob);
