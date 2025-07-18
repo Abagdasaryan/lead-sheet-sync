@@ -106,10 +106,10 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Calculate 7 days ago
+    // Calculate 7 days ago for filtering (install_date > 7 days ago)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    console.log('Seven days ago cutoff:', sevenDaysAgo.toISOString());
+    console.log('Seven days ago cutoff (jobs must be after this date):', sevenDaysAgo.toISOString());
 
     // Filter and process rows
     const filteredRows = rows
@@ -122,11 +122,11 @@ export default async function handler(req: Request): Promise<Response> {
           return false;
         }
 
-        // Check date filter (last 7 days)
+        // Check date filter (install_date > 7 days ago)
         if (installDateStr) {
           try {
             const installDate = new Date(installDateStr);
-            if (installDate < sevenDaysAgo) {
+            if (installDate <= sevenDaysAgo) {
               return false;
             }
           } catch (error) {
