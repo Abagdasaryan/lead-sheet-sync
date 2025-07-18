@@ -151,9 +151,15 @@ Deno.serve(async (req) => {
     // Send webhook to n8n
     let webhookResponse;
     let responseData = '';
+    let webhookSuccess = false;
     
     try {
-      console.log('About to send webhook request to:', webhookUrl);
+      console.log('=== WEBHOOK DEBUG INFO ===');
+      console.log('Webhook URL:', webhookUrl);
+      console.log('Payload size:', JSON.stringify(payload).length);
+      console.log('Number of line items:', payload.length);
+      console.log('About to send webhook request...');
+      
       webhookResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
@@ -162,16 +168,23 @@ Deno.serve(async (req) => {
         body: JSON.stringify(payload),
       });
       
-      console.log('Webhook response status:', webhookResponse.status);
-      responseData = await webhookResponse.text();
-      console.log('n8n webhook response:', responseData);
+      console.log('Webhook response received!');
+      console.log('Status:', webhookResponse.status);
+      console.log('Status text:', webhookResponse.statusText);
+      console.log('Headers:', Object.fromEntries(webhookResponse.headers.entries()));
       
-      if (!webhookResponse.ok) {
-        console.error(`Webhook failed with status: ${webhookResponse.status}, response: ${responseData}`);
-        // Don't throw error, just log it and continue
+      responseData = await webhookResponse.text();
+      console.log('Response body:', responseData);
+      
+      if (webhookResponse.ok) {
+        webhookSuccess = true;
+        console.log('✅ Webhook sent successfully');
+      } else {
+        console.error(`❌ Webhook failed with status: ${webhookResponse.status}, response: ${responseData}`);
       }
     } catch (fetchError) {
-      console.error('Error sending webhook:', fetchError);
+      console.error('❌ Error sending webhook:', fetchError);
+      console.error('Error details:', fetchError.message);
       responseData = `Failed to send webhook: ${fetchError.message}`;
     }
 

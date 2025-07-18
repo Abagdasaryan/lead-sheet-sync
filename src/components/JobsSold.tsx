@@ -277,6 +277,11 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     ));
     
     try {
+      console.log('=== FRONTEND DEBUG ===');
+      console.log('Sending webhook with URL:', TEST_WEBHOOK_URL);
+      console.log('Job data:', updatedJob);
+      console.log('Line items:', editingLineItems);
+      
       const { data, error } = await supabase.functions.invoke('send-job-webhook', {
         body: {
           webhookUrl: TEST_WEBHOOK_URL,
@@ -285,17 +290,24 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         }
       });
 
-      if (error) throw error;
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       toast({
-        title: "Line items saved and sent to n8n",
-        description: "Job line items have been saved and sent to your webhook successfully.",
+        title: "Line items saved successfully",
+        description: `Job saved to database and webhook sent. Response: ${data?.message || 'Success'}`,
       });
+      
+      console.log('Webhook response details:', data?.response);
     } catch (error) {
       console.error('Error sending webhook:', error);
       toast({
-        title: "Line items saved",
-        description: "Line items saved but failed to send webhook to n8n.",
+        title: "Line items saved to database",
+        description: "Job saved locally but webhook may have failed. Check console for details.",
         variant: "destructive"
       });
     }
