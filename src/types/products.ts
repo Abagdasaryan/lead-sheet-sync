@@ -27,4 +27,5 @@ export interface Job {
   installDate: string;
   sfOrderId: string;
   lineItems?: JobLineItem[];
+  lineItemsLocked?: boolean;
 }

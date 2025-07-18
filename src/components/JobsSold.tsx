@@ -142,6 +142,14 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   };
 
   const handleEditLineItems = (job: Job) => {
+    if (job.lineItemsLocked) {
+      toast({
+        title: "Line items locked",
+        description: "Line items have already been saved and cannot be edited.",
+        variant: "destructive"
+      });
+      return;
+    }
     setEditingLineItems(job.lineItems || []);
     setEditedJobData(job);
     setShowLineItemDialog(true);
@@ -188,19 +196,48 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     const updatedJob = {
       ...editedJobData,
       lineItems: editingLineItems,
-      leadSoldFor: totalAmount // Update the lead sold amount with line items total
+      leadSoldFor: totalAmount, // Update the lead sold amount with line items total
+      lineItemsLocked: true // Lock line items after saving
     };
     
     setJobs(jobs.map(job => 
       job.id === updatedJob.id ? updatedJob : job
     ));
     
+    // Automatically send webhook after saving line items
+    if (webhookUrl) {
+      try {
+        const { data, error } = await supabase.functions.invoke('send-job-webhook', {
+          body: {
+            webhookUrl,
+            jobData: updatedJob,
+            lineItems: editingLineItems
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Line items saved and sent to n8n",
+          description: "Job line items have been saved and sent to your webhook successfully.",
+        });
+      } catch (error) {
+        console.error('Error sending webhook:', error);
+        toast({
+          title: "Line items saved",
+          description: "Line items saved but failed to send webhook to n8n.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      toast({
+        title: "Line items saved",
+        description: "Job line items have been saved successfully. Add webhook URL to enable n8n integration.",
+      });
+    }
+    
     setShowLineItemDialog(false);
     setEditingLineItems([]);
-    toast({
-      title: "Line items updated",
-      description: "Job line items have been saved successfully.",
-    });
   };
 
   const sendWebhook = async (job: Job) => {
@@ -589,21 +626,39 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 <Edit className="h-3 w-3 mr-1" />
                                 Edit
                               </Button>
-                              <Button size="sm" variant="secondary" onClick={() => handleEditLineItems(job)}>
-                                Line Items
-                              </Button>
-                              <Button size="sm" variant="default" onClick={() => sendWebhook(job)}>
-                                <Send className="h-3 w-3 mr-1" />
-                                Send to n8n
+                              <Button 
+                                size="sm" 
+                                variant={job.lineItemsLocked ? "outline" : "secondary"} 
+                                onClick={() => handleEditLineItems(job)}
+                                disabled={job.lineItemsLocked}
+                              >
+                                {job.lineItemsLocked ? "Line Items (Locked)" : "Line Items"}
                               </Button>
                             </>
                           )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                         </div>
+                         {/* Show line items if they exist */}
+                         {job.lineItems && job.lineItems.length > 0 && (
+                           <div className="mt-2 p-2 bg-muted rounded text-xs">
+                             <strong>Line Items:</strong>
+                             <div className="mt-1">
+                               {job.lineItems.map((item, index) => (
+                                 <div key={index} className="flex justify-between">
+                                   <span>{item.productName}</span>
+                                   <span>{item.quantity}x ${item.unitPrice} = ${item.total}</span>
+                                 </div>
+                               ))}
+                               <div className="border-t pt-1 mt-1 font-semibold">
+                                 Total: ${job.lineItems.reduce((sum, item) => sum + item.total, 0)}
+                               </div>
+                             </div>
+                           </div>
+                         )}
+                       </TableCell>
+                     </TableRow>
+                   ))}
+                 </TableBody>
+               </Table>
             </div>
           </CardContent>
         </Card>
