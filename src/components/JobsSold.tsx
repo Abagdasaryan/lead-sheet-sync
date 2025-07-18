@@ -61,8 +61,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   const fetchJobsData = async () => {
     setLoading(true);
+    console.log('=== FETCH JOBS DATA START ===');
+    console.log('Profile:', profile);
+    console.log('User email:', user.email);
+    
     try {
       if (!profile?.rep_alias) {
+        console.log('ERROR: No rep alias found');
         toast({
           title: "Error",
           description: "Rep alias not found in profile. Please update your profile with your rep slug.",
@@ -81,19 +86,28 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         }
       });
 
-      if (error) throw error;
+      console.log('=== EDGE FUNCTION RESPONSE ===');
+      console.log('Error:', error);
+      console.log('Data:', data);
+      
+      if (error) {
+        console.log('Edge function error:', error);
+        throw error;
+      }
 
       const jobsData = data?.rows || [];
-      console.log('Raw data from backend:', data);
-      console.log('Jobs sold data received:', jobsData);
+      console.log('Jobs data length:', jobsData.length);
+      console.log('Jobs data:', jobsData);
       
       // Map the sheet data to Job format - fixing field mapping
       const mappedJobs: Job[] = jobsData.map((row: any, index: number) => {
+        console.log('Processing row:', index, row);
+        
         // Parse the Last Price field to get numeric value
         const priceString = row['Last Price'] || '0';
         const priceValue = parseFloat(priceString.replace(/[$,]/g, '')) || 0;
         
-        return {
+        const mappedJob = {
           id: `job-${index}`,
           client: row['CLIENT NAME'] || '',
           jobNumber: row['AppointmentName'] || '',
@@ -103,11 +117,18 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
           installDate: row['date'] || '',
           sfOrderId: row['sfOrderId'] || ''
         };
+        
+        console.log('Mapped job:', mappedJob);
+        return mappedJob;
       });
       
+      console.log('=== FINAL MAPPED JOBS ===');
+      console.log('Mapped jobs count:', mappedJobs.length);
       console.log('Mapped jobs:', mappedJobs);
       
       setJobs(mappedJobs);
+      console.log('Jobs state updated');
+      
       toast({
         title: "Data loaded",
         description: `Found ${jobsData.length} jobs sold for rep ${profile.rep_alias}.`,
@@ -120,6 +141,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         variant: "destructive",
       });
     } finally {
+      console.log('=== FETCH JOBS DATA END ===');
       setLoading(false);
     }
   };
@@ -318,16 +340,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
               Manage completed and in-progress jobs
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={fetchJobsData} disabled={loading || !profile?.rep_alias}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Fetch Jobs Data
-            </Button>
-            <Button onClick={handleRefresh} disabled={loading} variant="outline">
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Products
-            </Button>
-          </div>
+          <Button onClick={fetchJobsData} disabled={loading || !profile?.rep_alias}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Fetch Jobs Data
+          </Button>
         </div>
 
         {/* Filters */}
