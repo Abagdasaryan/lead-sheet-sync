@@ -36,8 +36,8 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained, length:', accessToken.length);
 
-    // Using the provided sandbox Google Sheet
-    const spreadsheetId = '1LBrM_EJg5FFQgg1xcJTKRjdgND-35po1_FHeToz1yzQ';
+    // Using the production Google Sheet
+    const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
     const range = 'A1:ZZ2000'; // Extended range to capture more data
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
