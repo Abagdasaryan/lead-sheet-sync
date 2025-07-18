@@ -17,6 +17,16 @@ interface JobsSoldProps {
   user: User;
 }
 
+interface Profile {
+  id: string;
+  user_id: string;
+  email: string;
+  rep_email: string | null;
+  rep_alias: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,16 +43,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   // Test webhook URL
   const TEST_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
-
-  interface Profile {
-    id: string;
-    user_id: string;
-    email: string;
-    rep_email: string | null;
-    rep_alias: string | null;
-    created_at: string;
-    updated_at: string;
-  }
 
   const fetchProfile = async () => {
     try {
@@ -74,7 +74,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
       
       const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
-        body: { userRepSlug: profile.rep_alias }
+        body: { 
+          userEmail: user.email,
+          userRepSlug: profile.rep_alias
+        }
       });
 
       if (error) throw error;
@@ -121,7 +124,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   }, [profile]);
 
-  // Fetch products from Supabase
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
@@ -155,7 +157,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       description: "Jobs sold data has been updated.",
     });
   };
-
 
   const handleEditLineItems = (job: Job) => {
     if (job.lineItemsLocked) {
@@ -212,15 +213,14 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     const updatedJob = {
       ...editedJobData,
       lineItems: editingLineItems,
-      leadSoldFor: totalAmount, // Update the lead sold amount with line items total
-      lineItemsLocked: true // Lock line items after saving
+      leadSoldFor: totalAmount,
+      lineItemsLocked: true
     };
     
     setJobs(jobs.map(job => 
       job.id === updatedJob.id ? updatedJob : job
     ));
     
-    // Automatically send webhook after saving line items
     try {
       const { data, error } = await supabase.functions.invoke('send-job-webhook', {
         body: {
@@ -252,12 +252,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const filteredAndSortedJobs = useMemo(() => {
     let filtered = jobs;
 
-    // Filter by payment type
     if (paymentTypeFilter !== 'all') {
       filtered = filtered.filter(job => job.paymentType === paymentTypeFilter);
     }
 
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(job =>
         job.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -266,7 +264,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       );
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let aVal, bVal;
       
@@ -304,7 +301,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   };
 
-  // Get unique payment types for filters
   const uniquePaymentTypes = [...new Set(jobs.map(job => job.paymentType))];
 
   return (
@@ -465,7 +461,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                              {job.lineItemsLocked ? "Line Items (Locked)" : "Line Items"}
                            </Button>
                           </div>
-                         {/* Show line items if they exist */}
                          {job.lineItems && job.lineItems.length > 0 && (
                            <div className="mt-2 p-2 bg-muted rounded text-xs">
                              <strong>Line Items:</strong>
