@@ -136,6 +136,9 @@ export const Dashboard = ({ user }: DashboardProps) => {
 
       if (error) throw error;
 
+      console.log('Raw data from backend:', data);
+      console.log('Rows data:', data.rows);
+      
       setSheetData(data.rows || []);
       toast({
         title: "Data loaded",
@@ -164,23 +167,39 @@ export const Dashboard = ({ user }: DashboardProps) => {
 
   // Filter by date range and sort data - show last 5 days by default
   const filteredAndSortedData = React.useMemo(() => {
+    console.log('Starting with sheetData:', sheetData);
+    
     // Start with all data
     let filteredData = [...sheetData];
     
     // Apply automatic 5-day filter
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    console.log('Five days ago cutoff:', fiveDaysAgo);
     
     filteredData = filteredData.filter(row => {
       const rowDateStr = row.date;
-      if (!rowDateStr) return false;
+      console.log('Processing row date:', rowDateStr, 'for row:', row);
+      
+      if (!rowDateStr) {
+        console.log('No date found, filtering out');
+        return false;
+      }
       
       const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
-      if (!month || !day || !year) return false;
+      if (!month || !day || !year) {
+        console.log('Invalid date parts:', { month, day, year });
+        return false;
+      }
       
       const rowDate = new Date(year, month - 1, day);
-      return rowDate >= fiveDaysAgo;
+      const isWithinRange = rowDate >= fiveDaysAgo;
+      console.log('Row date:', rowDate, 'within range?', isWithinRange);
+      
+      return isWithinRange;
     });
+    
+    console.log('Filtered data after date filter:', filteredData);
     
     // Apply sorting
     return filteredData.sort((a, b) => {
@@ -196,7 +215,7 @@ export const Dashboard = ({ user }: DashboardProps) => {
           const [bMonth, bDay, bYear] = bDateStr.split('/').map(num => parseInt(num) || 0);
           
           aValue = new Date(aYear, aMonth - 1, aDay).getTime();
-          bValue = new Date(bYear, bMonth - 1, bDay).getTime();
+          bValue = new Date(bYear, bMonth - 1, bYear).getTime();
           break;
         case 'status':
           aValue = a.Status || '';
