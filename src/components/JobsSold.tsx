@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/supabase-js";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RefreshCw, ArrowUpDown, Edit, Save, X, Plus, Trash2 } from "lucide-react";
 import { Job, JobLineItem, Product } from "@/types/products";
@@ -28,34 +28,86 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editingLineItems, setEditingLineItems] = useState<JobLineItem[]>([]);
   const [showLineItemDialog, setShowLineItemDialog] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
   const { toast } = useToast();
 
   // Test webhook URL
   const TEST_WEBHOOK_URL = 'https://n8n.srv858576.hstgr.cloud/webhook-test/4bcba099-6b2a-4177-87c3-8930046d675b';
 
-  // Mock data for now - will be replaced with sheet data
-  const mockJobs: Job[] = [
-    {
-      id: "1",
-      client: "ALEXIS OSBORNE",
-      jobNumber: "APG-01574",
-      rep: "Phil Brooks",
-      leadSoldFor: 1320,
-      paymentType: "Finance",
-      installDate: "2025-07-19",
-      sfOrderId: "801RP00000YxqlQYAR"
-    },
-    {
-      id: "2", 
-      client: "JOHN SMITH",
-      jobNumber: "APG-01575",
-      rep: "Sarah Johnson",
-      leadSoldFor: 2450,
-      paymentType: "Cash",
-      installDate: "2025-07-20",
-      sfOrderId: "801RP00000YxqlRYAR"
+  // Get session on component load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch jobs data from Google Sheets
+  const fetchJobsData = useCallback(async () => {
+    if (!session?.user) return;
+    
+    try {
+      setLoading(true);
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('rep_alias')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (!profile?.rep_alias) {
+        toast({
+          title: "Error",
+          description: "Rep alias not found in profile. Please update your profile with your rep slug.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Fetching jobs sold data for rep slug:', profile.rep_alias);
+      
+      const response = await supabase.functions.invoke('fetch-jobs-sold-data', {
+        body: { userRepSlug: profile.rep_alias }
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const jobsData = response.data?.rows || [];
+      console.log('Jobs sold data received:', jobsData);
+      
+      // Map the sheet data to Job format
+      const mappedJobs: Job[] = jobsData.map((row: any, index: number) => ({
+        id: `job-${index}`,
+        client: row.client || '',
+        jobNumber: row.jobNumber || '',
+        rep: row.rep || '',
+        leadSoldFor: row.leadSoldFor || 0,
+        paymentType: row.paymentType || '',
+        installDate: row.installDate || '',
+        sfOrderId: row.sfOrderId || ''
+      }));
+      
+      setJobs(mappedJobs);
+    } catch (error) {
+      console.error('Error fetching jobs data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch jobs data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [session?.user, supabase, toast]);
 
   // Fetch products from Supabase
   const fetchProducts = async () => {
@@ -79,21 +131,18 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   useEffect(() => {
     fetchProducts();
-    setJobs(mockJobs);
-  }, []);
+    if (session?.user) {
+      fetchJobsData();
+    }
+  }, [session?.user, fetchJobsData]);
 
   const handleRefresh = async () => {
-    setLoading(true);
-    // TODO: Replace with actual sheet data fetch
-    fetchProducts(); // Refresh products as well
-    setTimeout(() => {
-      setJobs(mockJobs);
-      setLoading(false);
-      toast({
-        title: "Data refreshed",
-        description: "Jobs sold data has been updated.",
-      });
-    }, 1000);
+    fetchProducts();
+    fetchJobsData();
+    toast({
+      title: "Data refreshed",
+      description: "Jobs sold data has been updated.",
+    });
   };
 
 
