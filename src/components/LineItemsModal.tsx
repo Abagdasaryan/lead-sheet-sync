@@ -176,6 +176,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
       console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobQueryError);
 
+      if (jobQueryError) {
+        console.error('❌ Error querying existing jobs:', jobQueryError);
+        throw jobQueryError;
+      }
+
       if (existingJobs && existingJobs.length > 0) {
         jobId = existingJobs[0].id; // Use the first job if multiple exist
         console.log('✅ Found existing job with ID:', jobId);
@@ -198,7 +203,10 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           .single();
 
         console.log('➕ New job creation result:', newJob, 'error:', jobError);
-        if (jobError) throw jobError;
+        if (jobError) {
+          console.error('❌ Error creating job:', jobError);
+          throw jobError;
+        }
         jobId = newJob.id;
         console.log('✅ Created new job with ID:', jobId);
       }
@@ -313,6 +321,21 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       });
 
       if (error) throw error;
+
+      // Update the job to mark webhook as sent and lock it
+      const jobToUpdate = lineItems.length > 0 ? await supabase
+        .from('jobs_sold')
+        .select('id')
+        .eq('sf_order_id', jobData.sf_order_id)
+        .eq('user_id', userId)
+        .single() : null;
+
+      if (jobToUpdate?.data) {
+        await supabase
+          .from('jobs_sold')
+          .update({ webhook_sent_at: new Date().toISOString() })
+          .eq('id', jobToUpdate.data.id);
+      }
 
       // Lock the job after successful webhook send
       setIsJobLocked(true);
