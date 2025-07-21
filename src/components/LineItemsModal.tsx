@@ -25,10 +25,12 @@ interface LineItemsModalProps {
 export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsModalProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [lineItems, setLineItems] = useState<JobLineItem[]>([]);
-  const [newLineItem, setNewLineItem] = useState({
-    productId: "",
-    quantity: 1,
-  });
+  const [newLineItems, setNewLineItems] = useState<Array<{
+    productId: string;
+    quantity: number;
+    tempId: string;
+  }>>([]);
+  const [isJobLocked, setIsJobLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const { toast } = useToast();
@@ -56,12 +58,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       // First, check if job exists in jobs_sold table
       const { data: existingJob } = await supabase
         .from('jobs_sold')
-        .select('id')
+        .select('id, webhook_sent_at')
         .eq('sf_order_id', jobData.sf_order_id)
         .eq('user_id', userId)
         .single();
 
       if (existingJob) {
+        setIsJobLocked(!!existingJob.webhook_sent_at);
+        
         const { data, error } = await supabase
           .from('job_line_items')
           .select('*')
@@ -85,18 +89,43 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     }
   };
 
-  const addLineItem = async () => {
-    if (!newLineItem.productId) {
+  const addNewLineItem = () => {
+    setNewLineItems([...newLineItems, {
+      productId: "",
+      quantity: 1,
+      tempId: Math.random().toString(36)
+    }]);
+  };
+
+  const updateNewLineItem = (tempId: string, field: 'productId' | 'quantity', value: string | number) => {
+    setNewLineItems(newLineItems.map(item => 
+      item.tempId === tempId ? { ...item, [field]: value } : item
+    ));
+  };
+
+  const removeNewLineItem = (tempId: string) => {
+    setNewLineItems(newLineItems.filter(item => item.tempId !== tempId));
+  };
+
+  const saveBatchLineItems = async () => {
+    if (newLineItems.length === 0) {
       toast({
         title: "Error",
-        description: "Please select a product",
+        description: "No line items to save",
         variant: "destructive",
       });
       return;
     }
 
-    const selectedProduct = products.find(p => p.id === newLineItem.productId);
-    if (!selectedProduct) return;
+    const invalidItems = newLineItems.filter(item => !item.productId || item.quantity < 1);
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Error",
+        description: "Please fill all product selections and quantities",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -132,27 +161,33 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         jobId = newJob.id;
       }
 
-      const total = selectedProduct.unit_price * newLineItem.quantity;
-
-      const { error } = await supabase
-        .from('job_line_items')
-        .insert({
+      // Prepare batch inserts
+      const lineItemsToInsert = newLineItems.map(item => {
+        const selectedProduct = products.find(p => p.id === item.productId);
+        if (!selectedProduct) throw new Error(`Product not found: ${item.productId}`);
+        
+        return {
           job_id: jobId,
           product_id: selectedProduct.id,
           product_name: selectedProduct.name,
-          quantity: newLineItem.quantity,
+          quantity: item.quantity,
           unit_price: selectedProduct.unit_price,
-          total: total
-        });
+          total: selectedProduct.unit_price * item.quantity
+        };
+      });
+
+      const { error } = await supabase
+        .from('job_line_items')
+        .insert(lineItemsToInsert);
 
       if (error) throw error;
 
-      setNewLineItem({ productId: "", quantity: 1 });
+      setNewLineItems([]);
       await fetchLineItems();
       
       toast({
         title: "Success",
-        description: "Line item added successfully",
+        description: `${lineItemsToInsert.length} line items saved successfully`,
       });
     } catch (error: any) {
       toast({
@@ -224,6 +259,9 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
       if (error) throw error;
 
+      // Lock the job after successful webhook send
+      setIsJobLocked(true);
+      
       toast({
         title: "Success",
         description: "Webhook sent successfully",
@@ -246,74 +284,98 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     }
   }, [isOpen]);
 
-  const selectedProduct = products.find(p => p.id === newLineItem.productId);
   const total = lineItems.reduce((sum, item) => sum + item.total, 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Manage Line Items</DialogTitle>
+          <DialogTitle>Manage Line Items {isJobLocked && "(Locked)"}</DialogTitle>
           <DialogDescription>
             Job: {jobData.job_number} - {jobData.client}
+            {isJobLocked && " - This job cannot be edited after webhook has been sent"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Add New Line Item */}
-          <div className="border rounded-lg p-4 space-y-4">
-            <h3 className="font-medium">Add Line Item</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <Label htmlFor="product">Product</Label>
-                <Select value={newLineItem.productId} onValueChange={(value) => 
-                  setNewLineItem({ ...newLineItem, productId: value })
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - ${product.unit_price}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={newLineItem.quantity}
-                  onChange={(e) => 
-                    setNewLineItem({ ...newLineItem, quantity: parseInt(e.target.value) || 1 })
-                  }
-                />
-              </div>
-              
-              <div className="flex items-end">
-                <Button 
-                  onClick={addLineItem} 
-                  disabled={loading || !newLineItem.productId}
-                  className="w-full"
-                >
+          {/* Add Multiple Line Items */}
+          {!isJobLocked && (
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">Add Line Items</h3>
+                <Button onClick={addNewLineItem} variant="outline" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Item
+                  Add Row
                 </Button>
               </div>
+              
+              {newLineItems.map((item, index) => (
+                <div key={item.tempId} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-3 border rounded">
+                  <div className="md:col-span-2">
+                    <Label>Product</Label>
+                    <Select 
+                      value={item.productId} 
+                      onValueChange={(value) => updateNewLineItem(item.tempId, 'productId', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${product.unit_price}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateNewLineItem(item.tempId, 'quantity', parseInt(e.target.value) || 1)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-end">
+                    {(() => {
+                      const product = products.find(p => p.id === item.productId);
+                      return product ? (
+                        <div className="text-sm text-muted-foreground">
+                          ${(product.unit_price * item.quantity).toFixed(2)}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                  
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeNewLineItem(item.tempId)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {newLineItems.length > 0 && (
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={saveBatchLineItems} 
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Save All Line Items ({newLineItems.length})
+                  </Button>
+                </div>
+              )}
             </div>
-            
-            {selectedProduct && (
-              <div className="text-sm text-muted-foreground">
-                Unit Price: ${selectedProduct.unit_price} | 
-                Total: ${(selectedProduct.unit_price * newLineItem.quantity).toFixed(2)}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Line Items List */}
           <div className="space-y-4">
@@ -338,13 +400,15 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                         Qty: {item.quantity} × ${item.unitPrice} = ${item.total.toFixed(2)}
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeLineItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!isJobLocked && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeLineItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
