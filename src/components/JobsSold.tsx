@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
-import { RefreshCw, DollarSign, Package, Settings } from "lucide-react";
+import { RefreshCw, DollarSign, Package, Settings, CheckCircle } from "lucide-react";
 import { MobileDataCard } from "./MobileDataCard";
 import { LineItemsModal } from "./LineItemsModal";
 import { cn } from "@/lib/utils";
@@ -182,33 +183,33 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-primary">Total Jobs</CardTitle>
+              <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{jobs.length}</div>
+              <div className="text-2xl font-bold text-primary">{jobs.length}</div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-green-500/10">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-700 dark:text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-700 dark:text-green-400">${totalAmount.toLocaleString()}</div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-blue-500/10">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Job Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">Average Job Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-blue-700 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                 ${jobs.length > 0 ? (totalAmount / jobs.length).toLocaleString() : '0'}
               </div>
             </CardContent>
@@ -252,25 +253,32 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 {job.lineItems && job.lineItems.length > 0 ? (
                                   <div className="space-y-1">
                                     {job.lineItems.map((item, idx) => (
-                                      <div key={idx}>
+                                      <div key={idx} className="text-xs">
                                         {item.product_name}: {item.quantity}x
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <span>No line items</span>
+                                  <span className="text-xs">No line items</span>
                                 )}
-                                {job.webhookSent && <span className="text-green-600 ml-2">• Webhook Sent</span>}
                               </div>
                             </div>
                             
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openLineItemsModal(job)}
-                            >
-                              <Settings className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {job.webhookSent && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Sent
+                                </Badge>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openLineItemsModal(job)}
+                              >
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -314,17 +322,12 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                    <div className="space-y-1">
                                      {job.lineItems && job.lineItems.length > 0 ? (
                                        job.lineItems.map((item, idx) => (
-                                         <div key={idx} className="text-sm">
-                                           {item.product_name}: {item.quantity}x
+                                         <div key={idx} className="text-xs text-muted-foreground">
+                                           {item.product_name}: <span className="text-primary font-medium">{item.quantity}x</span>
                                          </div>
                                        ))
                                      ) : (
-                                       <span className="text-muted-foreground text-sm">No line items</span>
-                                     )}
-                                     {job.webhookSent && (
-                                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                         Sent
-                                       </span>
+                                       <span className="text-muted-foreground text-xs">No line items</span>
                                      )}
                                    </div>
                                  </td>
