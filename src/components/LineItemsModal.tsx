@@ -313,7 +313,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     }
   }, [isOpen]);
 
-  const total = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const existingTotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const newItemsTotal = newLineItems.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + (product ? product.unit_price * item.quantity : 0);
+  }, 0);
+  const total = existingTotal + newItemsTotal;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -330,7 +335,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           {/* Add Multiple Line Items */}
           {!isJobLocked && (
             <div className="border rounded-lg p-4 space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
                 <h3 className="font-medium">Add Line Items</h3>
                 <Button onClick={addNewLineItem} variant="outline" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
