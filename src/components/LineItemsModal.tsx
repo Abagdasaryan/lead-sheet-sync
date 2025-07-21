@@ -73,26 +73,32 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   };
 
   const fetchLineItems = async () => {
+    console.log('🔍 Fetching line items for job:', jobData.sf_order_id, 'user:', userId);
     try {
       // First, check if job exists in jobs_sold table
-      const { data: existingJobs } = await supabase
+      const { data: existingJobs, error: jobsError } = await supabase
         .from('jobs_sold')
         .select('id, webhook_sent_at')
         .eq('sf_order_id', jobData.sf_order_id)
         .eq('user_id', userId);
 
+      console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobsError);
+
       if (existingJobs && existingJobs.length > 0) {
         const existingJob = existingJobs[0]; // Use the first job if multiple exist
         setIsJobLocked(!!existingJob.webhook_sent_at);
+        console.log('🔍 Job found, ID:', existingJob.id, 'locked:', !!existingJob.webhook_sent_at);
         
-        const { data, error } = await supabase
+        const { data: lineItemsData, error: lineItemsError } = await supabase
           .from('job_line_items')
           .select('*')
           .eq('job_id', existingJob.id);
 
-        if (error) throw error;
+        console.log('🔍 Line items query result:', lineItemsData, 'error:', lineItemsError);
+
+        if (lineItemsError) throw lineItemsError;
         
-        const transformedItems: JobLineItem[] = (data || []).map(item => ({
+        const transformedItems: JobLineItem[] = (lineItemsData || []).map(item => ({
           id: item.id,
           productId: item.product_id,
           productName: item.product_name,
@@ -101,13 +107,15 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           total: Number(item.total)
         }));
         
+        console.log('🔍 Transformed line items:', transformedItems);
         setLineItems(transformedItems);
       } else {
+        console.log('🔍 No existing job found');
         setIsJobLocked(false);
         setLineItems([]);
       }
     } catch (error: any) {
-      console.error('Error fetching line items:', error);
+      console.error('❌ Error fetching line items:', error);
       setIsJobLocked(false);
       setLineItems([]);
     }
@@ -132,6 +140,8 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   };
 
   const saveBatchLineItems = async () => {
+    console.log('💾 Starting to save batch line items:', newLineItems);
+    
     if (newLineItems.length === 0) {
       toast({
         title: "Error",
@@ -143,6 +153,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
     const invalidItems = newLineItems.filter(item => !item.productId || item.quantity < 1);
     if (invalidItems.length > 0) {
+      console.log('❌ Invalid items found:', invalidItems);
       toast({
         title: "Error",
         description: "Please fill all product selections and quantities",
@@ -155,16 +166,22 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     try {
       // First, ensure job exists in jobs_sold table
       let jobId;
-      const { data: existingJobs } = await supabase
+      console.log('🔍 Looking for existing job with sf_order_id:', jobData.sf_order_id, 'user_id:', userId);
+      
+      const { data: existingJobs, error: jobQueryError } = await supabase
         .from('jobs_sold')
         .select('id')
         .eq('sf_order_id', jobData.sf_order_id)
         .eq('user_id', userId);
 
+      console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobQueryError);
+
       if (existingJobs && existingJobs.length > 0) {
         jobId = existingJobs[0].id; // Use the first job if multiple exist
+        console.log('✅ Found existing job with ID:', jobId);
       } else {
         // Create job record
+        console.log('➕ Creating new job record');
         const { data: newJob, error: jobError } = await supabase
           .from('jobs_sold')
           .insert({
@@ -180,8 +197,10 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           .select()
           .single();
 
+        console.log('➕ New job creation result:', newJob, 'error:', jobError);
         if (jobError) throw jobError;
         jobId = newJob.id;
+        console.log('✅ Created new job with ID:', jobId);
       }
 
       // Prepare batch inserts
@@ -199,13 +218,19 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         };
       });
 
-      const { error } = await supabase
-        .from('job_line_items')
-        .insert(lineItemsToInsert);
+      console.log('💾 Inserting line items:', lineItemsToInsert);
 
-      if (error) throw error;
+      const { data: insertResult, error: insertError } = await supabase
+        .from('job_line_items')
+        .insert(lineItemsToInsert)
+        .select();
+
+      console.log('💾 Line items insert result:', insertResult, 'error:', insertError);
+
+      if (insertError) throw insertError;
 
       setNewLineItems([]);
+      console.log('🔄 Refreshing line items after save');
       await fetchLineItems();
       
       toast({
@@ -213,6 +238,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         description: `${lineItemsToInsert.length} line items saved successfully`,
       });
     } catch (error: any) {
+      console.error('❌ Error saving line items:', error);
       toast({
         title: "Error",
         description: error.message,
