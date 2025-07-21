@@ -72,56 +72,20 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const fetchJobsData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
+      const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
         body: { 
           userEmail: user.email,
-          userAlias: profile?.rep_alias,
-          sheetType: 'jobs-sold'
+          userRepSlug: profile?.rep_alias
         }
       });
 
       if (error) throw error;
 
       console.log('Jobs data from backend:', data);
-      
-      // Enhance jobs with line items data and webhook status
-      const enhancedJobs = await Promise.all((data.rows || []).map(async (job: JobData) => {
-        try {
-          // Check if job exists in database and get line items data
-          const { data: dbJob } = await supabase
-            .from('jobs_sold')
-            .select(`
-              id,
-              webhook_sent_at,
-              job_line_items(
-                product_name,
-                quantity
-              )
-            `)
-            .eq('sf_order_id', job.sf_order_id)
-            .eq('user_id', user.id)
-            .single();
-
-          return {
-            ...job,
-            lineItemsCount: dbJob?.job_line_items?.length || 0,
-            lineItems: dbJob?.job_line_items || [],
-            webhookSent: !!dbJob?.webhook_sent_at
-          };
-        } catch {
-          return {
-            ...job,
-            lineItemsCount: 0,
-            lineItems: [],
-            webhookSent: false
-          };
-        }
-      }));
-
-      setJobs(enhancedJobs);
+      setJobs(data.rows || []);
       toast({
         title: "Jobs loaded",
-        description: `Found ${enhancedJobs.length} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
+        description: `Found ${data.rows?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
       });
     } catch (error: any) {
       toast({
