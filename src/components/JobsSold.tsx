@@ -182,20 +182,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-primary">Total Jobs</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">{jobs.length}</div>
-            </CardContent>
-          </Card>
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-green-500/10">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Total Revenue</CardTitle>
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Total Sales</CardTitle>
               <DollarSign className="h-4 w-4 text-green-700 dark:text-green-400" />
             </CardHeader>
             <CardContent>
