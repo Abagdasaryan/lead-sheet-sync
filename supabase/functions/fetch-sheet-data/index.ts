@@ -235,8 +235,8 @@ serve(async (req) => {
         console.warn('No authorization header for database access');
       } else {
         try {
-          // Fetch database data to check status and merge
-          const dbResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/jobs_sold?select=sf_order_id,webhook_sent_at,id`, {
+          // Fetch database data to check status and get line items
+          const dbResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/jobs_sold?select=sf_order_id,webhook_sent_at,id,job_line_items(product_name,quantity)`, {
             headers: {
               'Authorization': authHeader,
               'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
@@ -255,7 +255,8 @@ serve(async (req) => {
             existingJobs.map(job => [job.sf_order_id, {
               id: job.id,
               webhookSent: !!job.webhook_sent_at,
-              webhookSentAt: job.webhook_sent_at
+              webhookSentAt: job.webhook_sent_at,
+              lineItems: job.job_line_items || []
             }])
           );
 
@@ -268,7 +269,9 @@ serve(async (req) => {
               lead_sold_for: parseFloat(row.price_sold) || 0,
               leadSoldFor: parseFloat(row.price_sold) || 0,
               // Add database status
-              hasLineItems: !!dbStatus,
+              hasLineItems: !!dbStatus && dbStatus.lineItems.length > 0,
+              lineItems: dbStatus?.lineItems || [],
+              lineItemsCount: dbStatus?.lineItems?.length || 0,
               webhookSent: dbStatus?.webhookSent || false,
               webhookSentAt: dbStatus?.webhookSentAt || null,
               jobId: dbStatus?.id || null
