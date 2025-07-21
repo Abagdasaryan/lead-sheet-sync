@@ -72,10 +72,11 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const fetchJobsData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
+      const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
           userEmail: user.email,
-          userRepSlug: profile?.rep_alias
+          userAlias: profile?.rep_alias,
+          sheetType: 'jobs-sold'
         }
       });
 

@@ -225,6 +225,68 @@ serve(async (req) => {
       return obj;
     });
 
+    // For jobs-sold, enrich with database status
+    if (sheetType === 'jobs-sold') {
+      console.log('Enriching jobs-sold data with database status...');
+      
+      // Get the authorization header for database access
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        console.warn('No authorization header for database access');
+      } else {
+        try {
+          // Fetch database data to check status and merge
+          const dbResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/jobs_sold?select=sf_order_id,webhook_sent_at,id`, {
+            headers: {
+              'Authorization': authHeader,
+              'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+              'Content-Type': 'application/json'
+            }
+          });
+
+          let existingJobs = [];
+          if (dbResponse.ok) {
+            existingJobs = await dbResponse.json();
+            console.log('Existing jobs in database:', existingJobs.length);
+          }
+
+          // Create a map for quick lookup
+          const jobStatusMap = new Map(
+            existingJobs.map(job => [job.sf_order_id, {
+              id: job.id,
+              webhookSent: !!job.webhook_sent_at,
+              webhookSentAt: job.webhook_sent_at
+            }])
+          );
+
+          // Merge sheet data with database status
+          const enrichedRows = processedRows.map(row => {
+            const dbStatus = jobStatusMap.get(row.sf_order_id);
+            return {
+              ...row,
+              // Convert price_sold to lead_sold_for for backwards compatibility
+              lead_sold_for: parseFloat(row.price_sold) || 0,
+              leadSoldFor: parseFloat(row.price_sold) || 0,
+              // Add database status
+              hasLineItems: !!dbStatus,
+              webhookSent: dbStatus?.webhookSent || false,
+              webhookSentAt: dbStatus?.webhookSentAt || null,
+              jobId: dbStatus?.id || null
+            };
+          });
+
+          console.log('Enriched data with database status:', enrichedRows.length, 'rows');
+          
+          return new Response(JSON.stringify({ rows: enrichedRows }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          console.warn('Error enriching with database status:', error);
+          // Fall back to returning sheet data without enrichment
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ rows: processedRows }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
