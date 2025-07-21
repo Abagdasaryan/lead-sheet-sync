@@ -54,37 +54,52 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Save job to Supabase
-    const { data: savedJob, error: jobError } = await supabase
+    // Find existing job or create if doesn't exist
+    let jobId;
+    const { data: existingJobs } = await supabase
       .from('jobs_sold')
-      .insert({
-        user_id: user.id,
-        client: jobData.client,
-        job_number: jobData.jobNumber,
-        rep: jobData.rep,
-        lead_sold_for: jobData.leadSoldFor,
-        payment_type: jobData.paymentType,
-        install_date: jobData.installDate,
-        sf_order_id: jobData.sfOrderId
-      })
-      .select()
-      .single();
+      .select('id')
+      .eq('sf_order_id', jobData.sfOrderId)
+      .eq('user_id', user.id);
 
-    if (jobError) {
-      console.error('Error saving job:', jobError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to save job to database' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    if (existingJobs && existingJobs.length > 0) {
+      jobId = existingJobs[0].id;
+      console.log('Using existing job ID:', jobId);
+    } else {
+      // Create job if it doesn't exist
+      const { data: savedJob, error: jobError } = await supabase
+        .from('jobs_sold')
+        .insert({
+          user_id: user.id,
+          client: jobData.client,
+          job_number: jobData.jobNumber,
+          rep: jobData.rep,
+          lead_sold_for: jobData.leadSoldFor,
+          payment_type: jobData.paymentType,
+          install_date: jobData.installDate,
+          sf_order_id: jobData.sfOrderId
+        })
+        .select()
+        .single();
+
+      if (jobError) {
+        console.error('Error saving job:', jobError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save job to database' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      jobId = savedJob.id;
+      console.log('Created new job ID:', jobId);
     }
 
     // Save line items to Supabase
     if (lineItems && lineItems.length > 0) {
       const lineItemsToInsert = lineItems.map((item: any) => ({
-        job_id: savedJob.id,
+        job_id: jobId,
         product_id: item.productId,
         product_name: item.productName,
         quantity: item.quantity,
@@ -185,6 +200,12 @@ Deno.serve(async (req) => {
       if (webhookResponse.ok) {
         webhookSuccess = true;
         console.log('✅ Webhook sent successfully');
+        
+        // Mark webhook as sent in the database
+        await supabase
+          .from('jobs_sold')
+          .update({ webhook_sent_at: new Date().toISOString() })
+          .eq('id', jobId);
       } else {
         console.error(`❌ Webhook failed with status: ${webhookResponse.status}, response: ${responseData}`);
       }
@@ -198,7 +219,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Job saved and webhook sent successfully',
-        jobId: savedJob.id,
+        jobId: jobId,
+        webhookSuccess: webhookSuccess,
         response: responseData
       }),
       { 
