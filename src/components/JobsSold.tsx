@@ -27,10 +27,13 @@ interface Profile {
 
 interface JobData {
   id?: string;
-  customerName: string;
-  jobDescription: string;
-  amount: number;
-  date: string;
+  client?: string;
+  jobNumber?: string;
+  rep?: string;
+  leadSoldFor?: number;
+  paymentType?: string;
+  installDate?: string;
+  sfOrderId?: string;
 }
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
@@ -100,7 +103,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   }, [profile]);
 
-  const totalAmount = jobs.reduce((sum, job) => sum + job.amount, 0);
+  const totalAmount = jobs.reduce((sum, job) => sum + (job.leadSoldFor || 0), 0);
 
   // Removed form component - jobs are read-only from sheet
 
@@ -190,10 +193,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-medium text-sm truncate mb-1">
-                                {job.customerName}
+                                {job.client || 'Unknown Client'}
                               </h3>
                               <p className="text-xs text-muted-foreground truncate">
-                                {job.jobDescription}
+                                Job #{job.jobNumber || 'N/A'} - {job.paymentType || 'N/A'}
                               </p>
                             </div>
                             
@@ -203,11 +206,11 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
                               <span className="text-muted-foreground">Amount:</span>
-                              <span className="ml-1 font-medium">${job.amount.toLocaleString()}</span>
+                              <span className="ml-1 font-medium">${(job.leadSoldFor || 0).toLocaleString()}</span>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Date:</span>
-                              <span className="ml-1 font-medium">{job.date}</span>
+                              <span className="text-muted-foreground">Install Date:</span>
+                              <span className="ml-1 font-medium">{job.installDate || 'N/A'}</span>
                             </div>
                           </div>
                         </CardContent>
@@ -218,22 +221,24 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   /* Desktop Table View */
                   <div className="rounded-lg border overflow-hidden">
                     <table className="w-full">
-                      <thead className="bg-muted/50">
-                        <tr>
-                           <th className="px-4 py-3 text-left font-medium">Customer</th>
-                           <th className="px-4 py-3 text-left font-medium">Description</th>
-                           <th className="px-4 py-3 text-left font-medium">Amount</th>
-                           <th className="px-4 py-3 text-left font-medium">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {jobs.map((job, index) => (
-                          <tr key={job.id || index} className="border-t hover:bg-muted/30">
-                             <td className="px-4 py-3">{job.customerName}</td>
-                             <td className="px-4 py-3">{job.jobDescription}</td>
-                             <td className="px-4 py-3 font-medium">${job.amount.toLocaleString()}</td>
-                             <td className="px-4 py-3">{job.date}</td>
-                          </tr>
+                       <thead className="bg-muted/50">
+                         <tr>
+                            <th className="px-4 py-3 text-left font-medium">Client</th>
+                            <th className="px-4 py-3 text-left font-medium">Job Number</th>
+                            <th className="px-4 py-3 text-left font-medium">Amount</th>
+                            <th className="px-4 py-3 text-left font-medium">Install Date</th>
+                            <th className="px-4 py-3 text-left font-medium">Payment Type</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {jobs.map((job, index) => (
+                           <tr key={job.id || index} className="border-t hover:bg-muted/30">
+                              <td className="px-4 py-3">{job.client || 'Unknown'}</td>
+                              <td className="px-4 py-3">{job.jobNumber || 'N/A'}</td>
+                              <td className="px-4 py-3 font-medium">${(job.leadSoldFor || 0).toLocaleString()}</td>
+                              <td className="px-4 py-3">{job.installDate || 'N/A'}</td>
+                              <td className="px-4 py-3">{job.paymentType || 'N/A'}</td>
+                           </tr>
                         ))}
                       </tbody>
                     </table>
