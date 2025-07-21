@@ -1,3 +1,4 @@
+
 export interface Product {
   id: string;
   product2_id: string;
@@ -28,4 +29,5 @@ export interface Job {
   sfOrderId: string;
   lineItems?: JobLineItem[];
   lineItemsLocked?: boolean;
+  webhookSent?: boolean;
 }

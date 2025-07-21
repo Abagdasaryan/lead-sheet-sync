@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
-import { RefreshCw, DollarSign, Package } from "lucide-react";
+import { RefreshCw, DollarSign, Package, Settings } from "lucide-react";
 import { MobileDataCard } from "./MobileDataCard";
+import { LineItemsModal } from "./LineItemsModal";
 import { cn } from "@/lib/utils";
 
 interface JobsSoldProps {
@@ -34,13 +36,16 @@ interface JobData {
   payment_type: string;
   install_date: string;
   sf_order_id: string;
+  lineItemsCount?: number;
+  webhookSent?: boolean;
 }
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  // Removed add/edit functionality - jobs come from sheet only
+  const [selectedJob, setSelectedJob] = useState<JobData | null>(null);
+  const [lineItemsModalOpen, setLineItemsModalOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -75,12 +80,40 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       if (error) throw error;
 
       console.log('Jobs data from backend:', data);
-      console.log('First job object:', data.rows?.[0]);
-      console.log('Job object keys:', data.rows?.[0] ? Object.keys(data.rows[0]) : 'No jobs');
-      setJobs(data.rows || []);
+      
+      // Enhance jobs with line items count and webhook status
+      const enhancedJobs = await Promise.all((data.rows || []).map(async (job: JobData) => {
+        try {
+          // Check if job exists in database and get line items count
+          const { data: dbJob } = await supabase
+            .from('jobs_sold')
+            .select(`
+              id,
+              webhook_sent_at,
+              job_line_items(count)
+            `)
+            .eq('sf_order_id', job.sf_order_id)
+            .eq('user_id', user.id)
+            .single();
+
+          return {
+            ...job,
+            lineItemsCount: dbJob?.job_line_items?.[0]?.count || 0,
+            webhookSent: !!dbJob?.webhook_sent_at
+          };
+        } catch {
+          return {
+            ...job,
+            lineItemsCount: 0,
+            webhookSent: false
+          };
+        }
+      }));
+
+      setJobs(enhancedJobs);
       toast({
         title: "Jobs loaded",
-        description: `Found ${data.rows?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
+        description: `Found ${enhancedJobs.length} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
       });
     } catch (error: any) {
       toast({
@@ -93,7 +126,17 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   };
 
-  // Removed all job modification functions - jobs are read-only from sheet
+  const openLineItemsModal = (job: JobData) => {
+    setSelectedJob(job);
+    setLineItemsModalOpen(true);
+  };
+
+  const closeLineItemsModal = () => {
+    setSelectedJob(null);
+    setLineItemsModalOpen(false);
+    // Refresh jobs to update line items count
+    fetchJobsData();
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -106,8 +149,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   }, [profile]);
 
   const totalAmount = jobs.reduce((sum, job) => sum + (parseFloat(job.price_sold?.toString() || '0') || 0), 0);
-
-  // Removed form component - jobs are read-only from sheet
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -200,9 +241,19 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                               <p className="text-xs text-muted-foreground truncate">
                                 Job #{job.job_number || 'N/A'} - {job.payment_type || 'N/A'}
                               </p>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Line Items: {job.lineItemsCount || 0}
+                                {job.webhookSent && <span className="text-green-600 ml-2">• Webhook Sent</span>}
+                              </div>
                             </div>
                             
-                             {/* Jobs are read-only from sheet */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openLineItemsModal(job)}
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -230,6 +281,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                             <th className="px-4 py-3 text-left font-medium">Amount</th>
                             <th className="px-4 py-3 text-left font-medium">Install Date</th>
                             <th className="px-4 py-3 text-left font-medium">Payment Type</th>
+                            <th className="px-4 py-3 text-left font-medium">Line Items</th>
+                            <th className="px-4 py-3 text-left font-medium">Actions</th>
                          </tr>
                        </thead>
                        <tbody>
@@ -240,6 +293,26 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 <td className="px-4 py-3 font-medium">${parseFloat(job.price_sold?.toString() || '0').toLocaleString()}</td>
                                 <td className="px-4 py-3">{job.install_date || 'N/A'}</td>
                                 <td className="px-4 py-3">{job.payment_type || 'N/A'}</td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <span>{job.lineItemsCount || 0}</span>
+                                    {job.webhookSent && (
+                                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                        Sent
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openLineItemsModal(job)}
+                                  >
+                                    <Settings className="mr-2 h-4 w-4" />
+                                    Manage
+                                  </Button>
+                                </td>
                              </tr>
                         ))}
                       </tbody>
@@ -250,6 +323,21 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             )}
           </CardContent>
         </Card>
+
+        {/* Line Items Modal */}
+        {selectedJob && (
+          <LineItemsModal
+            isOpen={lineItemsModalOpen}
+            onClose={closeLineItemsModal}
+            jobData={{
+              sf_order_id: selectedJob.sf_order_id,
+              client: selectedJob.client,
+              job_number: selectedJob.job_number,
+              install_date: selectedJob.install_date
+            }}
+            userId={user.id}
+          />
+        )}
       </div>
     </div>
   );
