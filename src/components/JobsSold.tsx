@@ -27,14 +27,14 @@ interface Profile {
 
 interface JobData {
   id?: string;
-  Client?: string;
-  Job_Number?: string;
-  Rep?: string;
-  Price_Sold?: number;
-  Payment_Type?: string;
-  Install_Date?: string;
-  sf_order_id?: string;
-  Rep_slug?: string;
+  Client: string;
+  Job_Number: string;
+  Rep: string;
+  Price_Sold: string | number;
+  Payment_Type: string;
+  Install_Date: string;
+  sf_order_id: string;
+  Rep_slug: string;
 }
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
@@ -104,7 +104,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   }, [profile]);
 
-  const totalAmount = jobs.reduce((sum, job) => sum + (job.Price_Sold || 0), 0);
+  const totalAmount = jobs.reduce((sum, job) => sum + (parseFloat(job.Price_Sold?.toString() || '0') || 0), 0);
 
   // Removed form component - jobs are read-only from sheet
 
@@ -207,7 +207,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
                               <span className="text-muted-foreground">Amount:</span>
-                              <span className="ml-1 font-medium">${(job.Price_Sold || 0).toLocaleString()}</span>
+                              <span className="ml-1 font-medium">${parseFloat(job.Price_Sold?.toString() || '0').toLocaleString()}</span>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Install Date:</span>
@@ -236,7 +236,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                            <tr key={job.id || index} className="border-t hover:bg-muted/30">
                                <td className="px-4 py-3">{job.Client || 'Unknown'}</td>
                                <td className="px-4 py-3">{job.Job_Number || 'N/A'}</td>
-                               <td className="px-4 py-3 font-medium">${(job.Price_Sold || 0).toLocaleString()}</td>
+                               <td className="px-4 py-3 font-medium">${parseFloat(job.Price_Sold?.toString() || '0').toLocaleString()}</td>
                                <td className="px-4 py-3">{job.Install_Date || 'N/A'}</td>
                                <td className="px-4 py-3">{job.Payment_Type || 'N/A'}</td>
                             </tr>
