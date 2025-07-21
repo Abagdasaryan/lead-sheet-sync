@@ -142,8 +142,10 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const closeLineItemsModal = () => {
     setSelectedJob(null);
     setLineItemsModalOpen(false);
-    // Refresh jobs to update line items count
-    fetchJobsData();
+    // Refresh jobs to update line items count and webhook status
+    setTimeout(() => {
+      fetchJobsData();
+    }, 100); // Small delay to ensure database operations complete
   };
 
   useEffect(() => {
