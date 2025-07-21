@@ -35,6 +35,25 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const { toast } = useToast();
 
+  // Function to get webhook URL from database with fallback
+  const getWebhookUrl = async (webhookName: string, fallbackUrl: string): Promise<string> => {
+    try {
+      const { data, error } = await supabase
+        .from('webhook_configs')
+        .select('url')
+        .eq('name', webhookName)
+        .eq('is_active', true)
+        .single();
+      
+      if (data && !error) {
+        return data.url;
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch webhook config for ${webhookName}, using fallback:`, error);
+    }
+    return fallbackUrl;
+  };
+
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
@@ -239,9 +258,15 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
     setSendingWebhook(true);
     try {
+      // Get webhook URL from database with fallback
+      const webhookUrl = await getWebhookUrl(
+        'job_webhook', 
+        'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b'
+      );
+      
       const { data, error } = await supabase.functions.invoke('send-job-webhook', {
         body: {
-          webhookUrl: 'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b',
+          webhookUrl,
           jobData: {
             client: jobData.client,
             jobNumber: jobData.job_number,

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,33 @@ serve(async (req) => {
     const { rowData, rowIndex } = await req.json();
     console.log('Received update request:', { rowData, rowIndex });
 
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get webhook URL from database with fallback
+    let webhookUrl = 'https://n8n.srv858576.hstgr.cloud/webhook/5265ab2b-6ffb-46f8-bcb3-05f961cc40db'; // fallback
+    
+    try {
+      const { data: webhookConfig, error: configError } = await supabase
+        .from('webhook_configs')
+        .select('url')
+        .eq('name', 'sheet_update_webhook')
+        .eq('is_active', true)
+        .single();
+      
+      if (webhookConfig && !configError) {
+        webhookUrl = webhookConfig.url;
+        console.log('Using webhook URL from database:', webhookUrl);
+      } else {
+        console.log('Using fallback webhook URL');
+      }
+    } catch (error) {
+      console.warn('Failed to fetch webhook config, using fallback:', error);
+    }
+
     // Prepare the payload for n8n webhook
     const webhookPayload = {
       rowData,
@@ -25,9 +53,6 @@ serve(async (req) => {
     };
 
     console.log('Sending to n8n webhook:', webhookPayload);
-
-    // Send to n8n webhook
-    const webhookUrl = 'https://n8n.srv858576.hstgr.cloud/webhook/5265ab2b-6ffb-46f8-bcb3-05f961cc40db';
     
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
