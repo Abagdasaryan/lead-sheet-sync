@@ -61,20 +61,21 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const fetchJobsData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-jobs-sold-data', {
+      const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
           userEmail: user.email,
-          userAlias: profile?.rep_alias
+          userAlias: profile?.rep_alias,
+          sheetType: 'jobs-sold'
         }
       });
 
       if (error) throw error;
 
       console.log('Jobs data from backend:', data);
-      setJobs(data.jobs || []);
+      setJobs(data.rows || []);
       toast({
         title: "Jobs loaded",
-        description: `Found ${data.jobs?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
+        description: `Found ${data.rows?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
       });
     } catch (error: any) {
       toast({
