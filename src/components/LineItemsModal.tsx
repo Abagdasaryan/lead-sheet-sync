@@ -418,6 +418,22 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                   </Button>
                 </div>
               )}
+
+              {lineItems.length > 0 && (
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={async () => {
+                      await sendWebhook();
+                      onClose();
+                    }} 
+                    disabled={sendingWebhook}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {sendingWebhook ? "Saving..." : "Save and Close"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
@@ -460,21 +476,10 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           </div>
 
           {/* Actions */}
-          <div className="flex justify-between">
+          <div className="flex justify-end">
             <Button variant="outline" onClick={onClose}>
               Close
             </Button>
-            
-            {lineItems.length > 0 && (
-              <Button 
-                onClick={sendWebhook} 
-                disabled={sendingWebhook}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {sendingWebhook ? "Sending..." : "Send Webhook"}
-              </Button>
-            )}
           </div>
         </div>
       </DialogContent>
