@@ -323,10 +323,10 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[600px] overflow-y-auto bg-gradient-to-br from-background to-secondary/10">
-        <DialogHeader className="border-b pb-4 mb-6">
+        <DialogHeader className="border-b pb-3 mb-4">
           <DialogTitle className="text-xl font-bold">Manage Line Items {isJobLocked && "(Locked)"}</DialogTitle>
-          <DialogDescription className="space-y-2">
-            <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
+          <DialogDescription className="space-y-3">
+            <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
               <div className="text-lg font-semibold text-primary">Job: {jobData.job_number}</div>
               <div className="text-base font-medium text-secondary-foreground">{jobData.client}</div>
             </div>
@@ -334,7 +334,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 pb-20">
+        <div className="space-y-6 pb-16">
           {/* Add Multiple Line Items */}
           {!isJobLocked && (
             <div className="border rounded-lg p-4 space-y-4">
