@@ -441,12 +441,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
           {/* Line Items List */}
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Line Items ({lineItems.length})</h3>
-              <div className="text-xl font-bold text-green-600">
-                Total: ${total.toFixed(2)}
-              </div>
-            </div>
             
             {lineItems.length > 0 && (
               <div className="space-y-3">
