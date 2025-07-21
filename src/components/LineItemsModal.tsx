@@ -322,16 +322,19 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[600px] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Manage Line Items {isJobLocked && "(Locked)"}</DialogTitle>
-          <DialogDescription>
-            Job: {jobData.job_number} - {jobData.client}
-            {isJobLocked && " - This job cannot be edited after webhook has been sent"}
+      <DialogContent className="max-w-4xl h-[600px] overflow-y-auto bg-gradient-to-br from-background to-secondary/10">
+        <DialogHeader className="border-b pb-4 mb-6">
+          <DialogTitle className="text-xl font-bold">Manage Line Items {isJobLocked && "(Locked)"}</DialogTitle>
+          <DialogDescription className="space-y-2">
+            <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
+              <div className="text-lg font-semibold text-primary">Job: {jobData.job_number}</div>
+              <div className="text-base font-medium text-secondary-foreground">{jobData.client}</div>
+            </div>
+            {isJobLocked && <div className="text-amber-600 font-medium">This job cannot be edited after webhook has been sent</div>}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-8 pb-20">
           {/* Add Multiple Line Items */}
           {!isJobLocked && (
             <div className="border rounded-lg p-4 space-y-4">
@@ -439,46 +442,88 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           {/* Line Items List */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-medium">Line Items ({lineItems.length})</h3>
-              <div className="text-lg font-semibold">
+              <h3 className="font-semibold text-lg">Line Items ({lineItems.length})</h3>
+              <div className="text-xl font-bold text-green-600">
                 Total: ${total.toFixed(2)}
               </div>
             </div>
             
             {lineItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No line items added yet
+              <div className="text-center py-12 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/30">
+                <div className="text-muted-foreground text-lg">No line items added yet</div>
+                <div className="text-sm text-muted-foreground mt-2">Use the "Add Line Items" button above to get started</div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {lineItems.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{item.productName}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Qty: {item.quantity} × ${item.unitPrice} = ${item.total.toFixed(2)}
-                      </div>
+              <div className="space-y-3">
+                {/* Grid Header */}
+                <div className="grid grid-cols-12 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm border">
+                  <div className="col-span-5">Product Name</div>
+                  <div className="col-span-2 text-center">Quantity</div>
+                  <div className="col-span-2 text-center">Unit Price</div>
+                  <div className="col-span-2 text-center">Total</div>
+                  {!isJobLocked && <div className="col-span-1 text-center">Action</div>}
+                </div>
+                
+                {/* Grid Items */}
+                {lineItems.map((item, index) => (
+                  <div key={item.id} className="grid grid-cols-12 gap-4 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div className="col-span-5">
+                      <div className="font-semibold text-primary">{item.productName}</div>
+                    </div>
+                    <div className="col-span-2 text-center">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {item.quantity}
+                      </span>
+                    </div>
+                    <div className="col-span-2 text-center font-medium">
+                      ${item.unitPrice.toFixed(2)}
+                    </div>
+                    <div className="col-span-2 text-center font-bold text-green-600">
+                      ${item.total.toFixed(2)}
                     </div>
                     {!isJobLocked && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeLineItem(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="col-span-1 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeLineItem(item.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Close
+        {/* Fixed Bottom Actions */}
+        <div className="absolute bottom-0 left-0 right-0 bg-background border-t p-4">
+          <div className="flex justify-between items-center">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700"
+            >
+              Cancel
             </Button>
+            
+            {lineItems.length > 0 && !isJobLocked && (
+              <Button 
+                onClick={async () => {
+                  await sendWebhook();
+                  onClose();
+                }} 
+                disabled={sendingWebhook}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {sendingWebhook ? "Saving..." : "Save and Close"}
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
