@@ -37,6 +37,10 @@ interface JobData {
   install_date: string;
   sf_order_id: string;
   lineItemsCount?: number;
+  lineItems?: Array<{
+    product_name: string;
+    quantity: number;
+  }>;
   webhookSent?: boolean;
 }
 
@@ -79,16 +83,19 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
       console.log('Jobs data from backend:', data);
       
-      // Enhance jobs with line items count and webhook status
+      // Enhance jobs with line items data and webhook status
       const enhancedJobs = await Promise.all((data.rows || []).map(async (job: JobData) => {
         try {
-          // Check if job exists in database and get line items count
+          // Check if job exists in database and get line items data
           const { data: dbJob } = await supabase
             .from('jobs_sold')
             .select(`
               id,
               webhook_sent_at,
-              job_line_items(count)
+              job_line_items(
+                product_name,
+                quantity
+              )
             `)
             .eq('sf_order_id', job.sf_order_id)
             .eq('user_id', user.id)
@@ -96,13 +103,15 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
           return {
             ...job,
-            lineItemsCount: dbJob?.job_line_items?.[0]?.count || 0,
+            lineItemsCount: dbJob?.job_line_items?.length || 0,
+            lineItems: dbJob?.job_line_items || [],
             webhookSent: !!dbJob?.webhook_sent_at
           };
         } catch {
           return {
             ...job,
             lineItemsCount: 0,
+            lineItems: [],
             webhookSent: false
           };
         }
@@ -240,7 +249,17 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 Job #{job.job_number || 'N/A'} - {job.payment_type || 'N/A'}
                               </p>
                               <div className="text-xs text-muted-foreground mt-1">
-                                Line Items: {job.lineItemsCount || 0}
+                                {job.lineItems && job.lineItems.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {job.lineItems.map((item, idx) => (
+                                      <div key={idx}>
+                                        {item.product_name}: {item.quantity}x
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span>No line items</span>
+                                )}
                                 {job.webhookSent && <span className="text-green-600 ml-2">• Webhook Sent</span>}
                               </div>
                             </div>
@@ -291,16 +310,24 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 <td className="px-4 py-3 font-medium">${parseFloat(job.price_sold?.toString() || '0').toLocaleString()}</td>
                                 <td className="px-4 py-3">{job.install_date || 'N/A'}</td>
                                 <td className="px-4 py-3">{job.payment_type || 'N/A'}</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <span>{job.lineItemsCount || 0}</span>
-                                    {job.webhookSent && (
-                                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                        Sent
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
+                                 <td className="px-4 py-3">
+                                   <div className="space-y-1">
+                                     {job.lineItems && job.lineItems.length > 0 ? (
+                                       job.lineItems.map((item, idx) => (
+                                         <div key={idx} className="text-sm">
+                                           {item.product_name}: {item.quantity}x
+                                         </div>
+                                       ))
+                                     ) : (
+                                       <span className="text-muted-foreground text-sm">No line items</span>
+                                     )}
+                                     {job.webhookSent && (
+                                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                         Sent
+                                       </span>
+                                     )}
+                                   </div>
+                                 </td>
                                 <td className="px-4 py-3">
                                   <Button
                                     size="sm"
