@@ -336,7 +336,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           {!isJobLocked && (
             <div className="border rounded-lg p-4 space-y-4">
               <div className="flex items-center gap-3">
-                <h3 className="font-medium">Add Line Items</h3>
                 <Button onClick={addNewLineItem} variant="outline" size="sm">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Line Items
