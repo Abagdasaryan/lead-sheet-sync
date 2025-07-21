@@ -76,6 +76,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       if (error) throw error;
 
       console.log('Jobs data from backend:', data);
+      console.log('First job object:', data.rows?.[0]);
+      console.log('Job object keys:', data.rows?.[0] ? Object.keys(data.rows[0]) : 'No jobs');
       setJobs(data.rows || []);
       toast({
         title: "Jobs loaded",
