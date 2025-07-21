@@ -448,12 +448,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
               </div>
             </div>
             
-            {lineItems.length === 0 ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/30">
-                <div className="text-muted-foreground text-lg">No line items added yet</div>
-                <div className="text-sm text-muted-foreground mt-2">Use the "Add Line Items" button above to get started</div>
-              </div>
-            ) : (
+            {lineItems.length > 0 && (
               <div className="space-y-3">
                 {/* Grid Header */}
                 <div className="grid grid-cols-12 gap-4 p-3 bg-muted/50 rounded-lg font-medium text-sm border">
