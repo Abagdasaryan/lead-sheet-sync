@@ -56,14 +56,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const fetchLineItems = async () => {
     try {
       // First, check if job exists in jobs_sold table
-      const { data: existingJob } = await supabase
+      const { data: existingJobs } = await supabase
         .from('jobs_sold')
         .select('id, webhook_sent_at')
         .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
 
-      if (existingJob) {
+      if (existingJobs && existingJobs.length > 0) {
+        const existingJob = existingJobs[0]; // Use the first job if multiple exist
         setIsJobLocked(!!existingJob.webhook_sent_at);
         
         const { data, error } = await supabase
@@ -83,9 +83,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         }));
         
         setLineItems(transformedItems);
+      } else {
+        setIsJobLocked(false);
+        setLineItems([]);
       }
     } catch (error: any) {
       console.error('Error fetching line items:', error);
+      setIsJobLocked(false);
+      setLineItems([]);
     }
   };
 
@@ -131,15 +136,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     try {
       // First, ensure job exists in jobs_sold table
       let jobId;
-      const { data: existingJob } = await supabase
+      const { data: existingJobs } = await supabase
         .from('jobs_sold')
         .select('id')
         .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
 
-      if (existingJob) {
-        jobId = existingJob.id;
+      if (existingJobs && existingJobs.length > 0) {
+        jobId = existingJobs[0].id; // Use the first job if multiple exist
       } else {
         // Create job record
         const { data: newJob, error: jobError } = await supabase
@@ -344,10 +348,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                     {(() => {
                       const product = products.find(p => p.id === item.productId);
                       return product ? (
-                        <div className="text-sm text-muted-foreground">
-                          ${(product.unit_price * item.quantity).toFixed(2)}
+                        <div className="text-sm text-muted-foreground font-medium">
+                          Total: ${(product.unit_price * item.quantity).toFixed(2)}
                         </div>
-                      ) : null;
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          Select product
+                        </div>
+                      );
                     })()}
                   </div>
                   
@@ -364,7 +372,13 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
               ))}
               
               {newLineItems.length > 0 && (
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded">
+                  <div className="text-sm font-medium">
+                    Batch Total: ${newLineItems.reduce((sum, item) => {
+                      const product = products.find(p => p.id === item.productId);
+                      return sum + (product ? product.unit_price * item.quantity : 0);
+                    }, 0).toFixed(2)}
+                  </div>
                   <Button 
                     onClick={saveBatchLineItems} 
                     disabled={loading}
