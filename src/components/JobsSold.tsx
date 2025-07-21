@@ -206,19 +206,22 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                               <p className="text-xs text-muted-foreground truncate">
                                 Job #{job.job_number || 'N/A'} - {job.payment_type || 'N/A'}
                               </p>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {job.lineItems && job.lineItems.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {job.lineItems.map((item, idx) => (
-                                      <div key={idx} className="text-xs">
-                                        {item.product_name}: {item.quantity}x
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs">No line items</span>
-                                )}
-                              </div>
+                               <div className="text-xs text-muted-foreground mt-1">
+                                 {job.lineItems && job.lineItems.length > 0 ? (
+                                   <div className="flex flex-wrap gap-1">
+                                     {job.lineItems.slice(0, 3).map((item, idx) => (
+                                       <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">
+                                         {item.product_name}: {item.quantity}x
+                                       </span>
+                                     ))}
+                                     {job.lineItems.length > 3 && (
+                                       <span className="text-xs text-muted-foreground">+{job.lineItems.length - 3} more</span>
+                                     )}
+                                   </div>
+                                 ) : (
+                                   <span className="text-xs text-muted-foreground">No line items</span>
+                                 )}
+                               </div>
                             </div>
                             
                             <div className="flex items-center gap-2">
@@ -276,13 +279,18 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 <td className="px-4 py-3">{job.install_date || 'N/A'}</td>
                                 <td className="px-4 py-3">{job.payment_type || 'N/A'}</td>
                                  <td className="px-4 py-3">
-                                   <div className="space-y-1">
+                                   <div className="flex flex-wrap gap-1 max-w-xs">
                                      {job.lineItems && job.lineItems.length > 0 ? (
-                                       job.lineItems.map((item, idx) => (
-                                         <div key={idx} className="text-xs text-muted-foreground">
-                                           {item.product_name}: <span className="text-primary font-medium">{item.quantity}x</span>
-                                         </div>
-                                       ))
+                                       <>
+                                         {job.lineItems.slice(0, 4).map((item, idx) => (
+                                           <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary whitespace-nowrap">
+                                             {item.product_name}: {item.quantity}x
+                                           </span>
+                                         ))}
+                                         {job.lineItems.length > 4 && (
+                                           <span className="text-xs text-muted-foreground">+{job.lineItems.length - 4} more</span>
+                                         )}
+                                       </>
                                      ) : (
                                        <span className="text-muted-foreground text-xs">No line items</span>
                                      )}
