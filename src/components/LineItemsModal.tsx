@@ -357,10 +357,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
   useEffect(() => {
     if (isOpen) {
+      console.log('🔄 Modal opened, fetching products and line items for job:', jobData.sf_order_id);
       fetchProducts();
       fetchLineItems();
     }
-  }, [isOpen]);
+  }, [isOpen, jobData.sf_order_id]); // Added dependency on sf_order_id
 
   const existingTotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   const newItemsTotal = newLineItems.reduce((sum, item) => {
@@ -488,17 +489,16 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           )}
 
           {/* Existing Line Items */}
-          {lineItems.length > 0 && (
-            <div className="bg-card border rounded-lg shadow-sm">
-              <div className="px-4 py-3 border-b bg-muted/30">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold text-foreground">Line Items ({lineItems.length})</h3>
-                  <div className="text-xl font-bold text-green-600">
-                    Grand Total: ${total.toFixed(2)}
-                  </div>
-                </div>
+          <div className="bg-card border rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b bg-muted/30">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-foreground">
+                  Current Line Items ({lineItems.length})
+                </h3>
               </div>
-              
+            </div>
+            
+            {lineItems.length > 0 ? (
               <div className="p-4 space-y-2">
                 {/* Grid Header */}
                 <div className="grid grid-cols-12 gap-3 p-2 bg-muted/50 rounded text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -541,8 +541,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="p-4 text-center text-muted-foreground">
+                No line items yet. Add some line items above.
+              </div>
+            )}
+          </div>
 
           {/* Empty State */}
           {lineItems.length === 0 && newLineItems.length === 0 && !isJobLocked && (
