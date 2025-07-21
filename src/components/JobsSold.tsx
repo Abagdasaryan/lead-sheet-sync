@@ -7,9 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { RefreshCw, Plus, Trash2, Edit, DollarSign, User as UserIcon, Calendar, Package } from "lucide-react";
+import { RefreshCw, DollarSign, Package } from "lucide-react";
 import { MobileDataCard } from "./MobileDataCard";
 import { cn } from "@/lib/utils";
 
@@ -39,14 +37,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingJob, setEditingJob] = useState<JobData | null>(null);
-  const [formData, setFormData] = useState<JobData>({
-    customerName: '',
-    jobDescription: '',
-    amount: 0,
-    date: new Date().toISOString().split('T')[0]
-  });
+  // Removed add/edit functionality - jobs come from sheet only
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -96,119 +87,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     }
   };
 
-  const sendWebhook = async (jobData: JobData, action: 'create' | 'update' | 'delete') => {
-    try {
-      const webhookPayload = {
-        action,
-        job: jobData,
-        timestamp: new Date().toISOString(),
-        userEmail: user.email,
-        userAlias: profile?.rep_alias
-      };
-
-      console.log('Sending webhook payload:', webhookPayload);
-
-      const response = await fetch(PRODUCTION_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(webhookPayload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
-      }
-
-      console.log('Webhook sent successfully');
-      
-      toast({
-        title: "Webhook sent",
-        description: `Job ${action} webhook sent successfully`,
-      });
-    } catch (error: any) {
-      console.error('Webhook error:', error);
-      toast({
-        title: "Webhook Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const jobData = {
-      ...formData,
-      id: editingJob?.id || `job_${Date.now()}`
-    };
-
-    try {
-      if (editingJob) {
-        setJobs(prev => prev.map(job => job.id === editingJob.id ? jobData : job));
-        await sendWebhook(jobData, 'update');
-      } else {
-        setJobs(prev => [...prev, jobData]);
-        await sendWebhook(jobData, 'create');
-      }
-
-      setIsModalOpen(false);
-      setEditingJob(null);
-      setFormData({
-        customerName: '',
-        jobDescription: '',
-        amount: 0,
-        date: new Date().toISOString().split('T')[0]
-      });
-
-      toast({
-        title: editingJob ? "Job updated" : "Job added",
-        description: `Job ${editingJob ? 'updated' : 'added'} successfully`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEdit = (job: JobData) => {
-    setEditingJob(job);
-    setFormData(job);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (job: JobData) => {
-    try {
-      setJobs(prev => prev.filter(j => j.id !== job.id));
-      await sendWebhook(job, 'delete');
-      
-      toast({
-        title: "Job deleted",
-        description: "Job deleted successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddNew = () => {
-    setEditingJob(null);
-    setFormData({
-      customerName: '',
-      jobDescription: '',
-      amount: 0,
-      date: new Date().toISOString().split('T')[0]
-    });
-    setIsModalOpen(true);
-  };
+  // Removed all job modification functions - jobs are read-only from sheet
 
   useEffect(() => {
     fetchProfile();
@@ -222,55 +101,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
   const totalAmount = jobs.reduce((sum, job) => sum + job.amount, 0);
 
-  // Mobile form component
-  const JobForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="customerName">Customer Name</Label>
-        <Input
-          id="customerName"
-          value={formData.customerName}
-          onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
-          required
-          className="mt-1"
-        />
-      </div>
-      <div>
-        <Label htmlFor="jobDescription">Job Description</Label>
-        <Input
-          id="jobDescription"
-          value={formData.jobDescription}
-          onChange={(e) => setFormData(prev => ({ ...prev, jobDescription: e.target.value }))}
-          required
-          className="mt-1"
-        />
-      </div>
-      <div>
-        <Label htmlFor="amount">Amount ($)</Label>
-        <Input
-          id="amount"
-          type="number"
-          step="0.01"
-          min="0"
-          value={formData.amount}
-          onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-          required
-          className="mt-1"
-        />
-      </div>
-      <div>
-        <Label htmlFor="date">Date</Label>
-        <Input
-          id="date"
-          type="date"
-          value={formData.date}
-          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-          required
-          className="mt-1"
-        />
-      </div>
-    </form>
-  );
+  // Removed form component - jobs are read-only from sheet
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
@@ -287,68 +118,11 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
               onClick={fetchJobsData} 
               disabled={loading}
               variant="outline"
-              className={`${isMobile ? 'flex-1' : ''}`}
+              className={`${isMobile ? 'w-full' : ''}`}
             >
               <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
               {loading ? "Loading..." : "Refresh"}
             </Button>
-            
-            {/* Mobile Drawer vs Desktop Dialog */}
-            {isMobile ? (
-              <Drawer open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DrawerTrigger asChild>
-                  <Button onClick={handleAddNew} className="flex-1">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Job
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DrawerTitle>
-                    <DrawerDescription>
-                      {editingJob ? 'Update job details' : 'Enter details for the new job'}
-                    </DrawerDescription>
-                  </DrawerHeader>
-                  <div className="px-4">
-                    <JobForm />
-                  </div>
-                  <DrawerFooter>
-                    <Button type="submit" onClick={handleSubmit}>
-                      {editingJob ? 'Update Job' : 'Add Job'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                      Cancel
-                    </Button>
-                  </DrawerFooter>
-                </DrawerContent>
-              </Drawer>
-            ) : (
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={handleAddNew}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Job
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingJob ? 'Edit Job' : 'Add New Job'}</DialogTitle>
-                    <DialogDescription>
-                      {editingJob ? 'Update job details' : 'Enter details for the new job'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <JobForm />
-                  <DialogFooter>
-                    <Button type="submit" onClick={handleSubmit}>
-                      {editingJob ? 'Update Job' : 'Add Job'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                      Cancel
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
           </div>
         </div>
 
@@ -401,7 +175,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                 <Package className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground text-lg mb-2">No jobs found</p>
                 <p className="text-sm text-muted-foreground">
-                  Add your first job to get started
+                  No jobs in the sheet for your account
                 </p>
               </div>
             ) : (
@@ -422,24 +196,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                               </p>
                             </div>
                             
-                            <div className="flex items-center gap-2 ml-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleEdit(job)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleDelete(job)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                             {/* Jobs are read-only from sheet */}
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -462,41 +219,19 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                     <table className="w-full">
                       <thead className="bg-muted/50">
                         <tr>
-                          <th className="px-4 py-3 text-left font-medium">Customer</th>
-                          <th className="px-4 py-3 text-left font-medium">Description</th>
-                          <th className="px-4 py-3 text-left font-medium">Amount</th>
-                          <th className="px-4 py-3 text-left font-medium">Date</th>
-                          <th className="px-4 py-3 text-left font-medium">Actions</th>
+                           <th className="px-4 py-3 text-left font-medium">Customer</th>
+                           <th className="px-4 py-3 text-left font-medium">Description</th>
+                           <th className="px-4 py-3 text-left font-medium">Amount</th>
+                           <th className="px-4 py-3 text-left font-medium">Date</th>
                         </tr>
                       </thead>
                       <tbody>
                         {jobs.map((job, index) => (
                           <tr key={job.id || index} className="border-t hover:bg-muted/30">
-                            <td className="px-4 py-3">{job.customerName}</td>
-                            <td className="px-4 py-3">{job.jobDescription}</td>
-                            <td className="px-4 py-3 font-medium">${job.amount.toLocaleString()}</td>
-                            <td className="px-4 py-3">{job.date}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(job)}
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDelete(job)}
-                                  className="text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  Delete
-                                </Button>
-                              </div>
-                            </td>
+                             <td className="px-4 py-3">{job.customerName}</td>
+                             <td className="px-4 py-3">{job.jobDescription}</td>
+                             <td className="px-4 py-3 font-medium">${job.amount.toLocaleString()}</td>
+                             <td className="px-4 py-3">{job.date}</td>
                           </tr>
                         ))}
                       </tbody>
