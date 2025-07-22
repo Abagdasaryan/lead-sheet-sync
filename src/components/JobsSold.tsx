@@ -73,58 +73,51 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const fetchJobsData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
-        body: { 
-          userEmail: user.email,
-          userAlias: profile?.rep_alias,
-          sheetType: 'jobs-sold'
-        }
-      });
+      // Fetch jobs with line items directly from database
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs_sold')
+        .select(`
+          *,
+          job_line_items (
+            id,
+            product_id,
+            product_name,
+            quantity,
+            unit_price,
+            total
+          )
+        `)
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (jobsError) throw jobsError;
 
-      console.log('Jobs data from backend:', data);
+      console.log('Jobs data from database:', jobsData);
       
-      // Deduplicate line items for each job
-      const jobsWithDeduplicatedLineItems = (data.rows || []).map((job: JobData) => {
-        if (job.lineItems && job.lineItems.length > 0) {
-          const originalCount = job.lineItems.length;
-          
-          // Create a map to track unique line items by product_name
-          const uniqueLineItems = new Map();
-          
-          job.lineItems.forEach(item => {
-            const key = item.product_name;
-            if (uniqueLineItems.has(key)) {
-              // If duplicate found, sum the quantities
-              const existing = uniqueLineItems.get(key);
-              existing.quantity += item.quantity;
-            } else {
-              uniqueLineItems.set(key, { ...item });
-            }
-          });
-          
-          const deduplicatedItems = Array.from(uniqueLineItems.values());
-          
-          if (originalCount !== deduplicatedItems.length) {
-            console.log(`🔄 Deduplicated line items for job ${job.job_number}: ${originalCount} → ${deduplicatedItems.length}`);
-          }
-          
-          return {
-            ...job,
-            lineItems: deduplicatedItems,
-            lineItemsCount: deduplicatedItems.length
-          };
-        }
-        return job;
-      });
+      // Transform database data to match current JobData interface
+      const transformedJobs = (jobsData || []).map(job => ({
+        id: job.id,
+        client: job.client,
+        job_number: job.job_number,
+        rep: job.rep,
+        price_sold: job.lead_sold_for?.toString() || '0',
+        payment_type: job.payment_type,
+        install_date: job.install_date,
+        sf_order_id: job.sf_order_id,
+        lineItems: job.job_line_items?.map(item => ({
+          product_name: item.product_name,
+          quantity: item.quantity
+        })) || [],
+        webhookSent: !!job.webhook_sent_at,
+        webhookSentAt: job.webhook_sent_at
+      }));
       
-      setJobs(jobsWithDeduplicatedLineItems);
+      setJobs(transformedJobs);
       toast({
         title: "Jobs loaded",
-        description: `Found ${data.rows?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
+        description: `Found ${transformedJobs.length} jobs in database.`,
       });
     } catch (error: any) {
+      console.error('Error fetching jobs:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -154,10 +147,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   }, [user.id]);
 
   useEffect(() => {
-    if (profile) {
-      fetchJobsData();
-    }
-  }, [profile]);
+    fetchJobsData();
+  }, [user.id]);
 
   const totalAmount = jobs.reduce((sum, job) => sum + (parseFloat(job.price_sold?.toString() || '0') || 0), 0);
 
