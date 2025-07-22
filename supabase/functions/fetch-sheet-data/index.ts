@@ -144,15 +144,27 @@ serve(async (req) => {
     console.log('Total rows checked:', rows.length);
     console.log('Filtered rows count:', filteredRows.length);
     
-    // Find the indices of allowed columns (case-insensitive and flexible)
+    // Find the indices of allowed columns with exact matching for critical fields
     const columnIndices = allowedColumns.map(allowedCol => {
-      const index = headers.findIndex(header => {
-        const headerLower = header.toLowerCase().replace(/[_\s]/g, '');
-        const allowedLower = allowedCol.toLowerCase().replace(/[_\s]/g, '');
-        return headerLower === allowedLower || 
-               headerLower.includes(allowedLower) ||
-               allowedLower.includes(headerLower);
-      });
+      let index = -1;
+      
+      // Special handling for AppointmentName to avoid mapping to time column "M"
+      if (allowedCol === 'AppointmentName') {
+        index = headers.findIndex(header => 
+          header.toLowerCase().trim() === 'appointmentname' ||
+          header === 'AppointmentName'
+        );
+      } else {
+        // For other columns, use flexible matching
+        index = headers.findIndex(header => {
+          const headerLower = header.toLowerCase().replace(/[_\s]/g, '');
+          const allowedLower = allowedCol.toLowerCase().replace(/[_\s]/g, '');
+          return headerLower === allowedLower || 
+                 headerLower.includes(allowedLower) ||
+                 allowedLower.includes(headerLower);
+        });
+      }
+      
       return { name: allowedCol, index, originalName: index >= 0 ? headers[index] : null };
     }).filter(col => col.index >= 0);
 

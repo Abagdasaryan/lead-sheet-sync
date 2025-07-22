@@ -166,8 +166,8 @@ export const Leads = ({ user }: DashboardProps) => {
     let filteredData = [...sheetData];
     
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    console.log('Seven days ago cutoff:', sevenDaysAgo);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 30); // Temporarily extend to 30 days to include all recent data
+    console.log('Thirty days ago cutoff:', sevenDaysAgo);
     
     filteredData = filteredData.filter(row => {
       const rowDateStr = row.date;
