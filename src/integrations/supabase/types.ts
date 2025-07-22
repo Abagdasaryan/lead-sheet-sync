@@ -57,42 +57,42 @@ export type Database = {
       }
       jobs_sold: {
         Row: {
-          client: string
+          client: string | null
           created_at: string
           id: string
-          install_date: string
+          install_date: string | null
           job_number: string
-          lead_sold_for: number
-          payment_type: string
-          rep: string
+          lead_sold_for: number | null
+          payment_type: string | null
+          rep: string | null
           sf_order_id: string
           updated_at: string
           user_id: string
           webhook_sent_at: string | null
         }
         Insert: {
-          client: string
+          client?: string | null
           created_at?: string
           id?: string
-          install_date: string
+          install_date?: string | null
           job_number: string
-          lead_sold_for: number
-          payment_type: string
-          rep: string
+          lead_sold_for?: number | null
+          payment_type?: string | null
+          rep?: string | null
           sf_order_id: string
           updated_at?: string
           user_id: string
           webhook_sent_at?: string | null
         }
         Update: {
-          client?: string
+          client?: string | null
           created_at?: string
           id?: string
-          install_date?: string
+          install_date?: string | null
           job_number?: string
-          lead_sold_for?: number
-          payment_type?: string
-          rep?: string
+          lead_sold_for?: number | null
+          payment_type?: string | null
+          rep?: string | null
           sf_order_id?: string
           updated_at?: string
           user_id?: string
