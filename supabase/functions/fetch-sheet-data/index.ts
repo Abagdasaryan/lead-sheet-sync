@@ -119,6 +119,27 @@ serve(async (req) => {
     console.log('userAlias:', userAlias);
     console.log('Filter value:', userAlias || userEmail);
 
+    // First, let's see all unique values in the RepEmail column for debugging
+    const uniqueRepEmails = [...new Set(rows.map(row => row[slugIndex]).filter(Boolean))];
+    console.log('All unique RepEmail values in sheet:', uniqueRepEmails.slice(0, 20)); // Show first 20
+    
+    // Also check for partial matches to see if there are variations
+    const potentialMatches = rows.filter((row, index) => {
+      const slugValue = row[slugIndex];
+      if (!slugValue) return false;
+      const slugValueLower = slugValue.toLowerCase().trim();
+      return slugValueLower.includes('ab') || slugValueLower === 'ab';
+    });
+    console.log('Potential matches containing "ab":', potentialMatches.length);
+    potentialMatches.slice(0, 10).forEach((row, index) => {
+      console.log(`Potential match ${index + 1}:`, {
+        repEmail: row[slugIndex],
+        date: row[dateColumnIndex],
+        client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A',
+        rowIndex: rows.indexOf(row) + 1
+      });
+    });
+
     // Filter rows using the appropriate slug column
     const filteredRows = rows.filter((row, index) => {
       const slugValue = row[slugIndex];
@@ -130,7 +151,7 @@ serve(async (req) => {
       
       // For leads, return all matches (date filtering is done on frontend)
       if (isSlugMatch) {
-        console.log(`✓ MATCH found at row ${index + 1}:`, {
+        console.log(`✓ EXACT MATCH found at row ${index + 1}:`, {
           slugValue: slugValue,
           normalized: slugValueNormalized,
           date: row[dateColumnIndex],
