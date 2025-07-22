@@ -169,11 +169,16 @@ serve(async (req) => {
     const columnIndices = allowedColumns.map(allowedCol => {
       let index = -1;
       
-      // Special handling for AppointmentName to avoid mapping to time column "M"
+      // Special handling for specific columns to ensure correct mapping
       if (allowedCol === 'AppointmentName') {
         index = headers.findIndex(header => 
           header.toLowerCase().trim() === 'appointmentname' ||
           header === 'AppointmentName'
+        );
+      } else if (allowedCol === 'Status') {
+        // Map to "Status" column, not "AppointmentStatus"
+        index = headers.findIndex(header => 
+          header === 'Status'
         );
       } else {
         // For other columns, use flexible matching
