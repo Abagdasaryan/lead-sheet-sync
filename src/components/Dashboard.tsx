@@ -169,29 +169,10 @@ export const Leads = ({ user }: DashboardProps) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 30); // Temporarily extend to 30 days to include all recent data
     console.log('Thirty days ago cutoff:', sevenDaysAgo);
     
-    filteredData = filteredData.filter(row => {
-      const rowDateStr = row.date;
-      console.log('Processing row date:', rowDateStr, 'for row:', row);
-      
-      if (!rowDateStr) {
-        console.log('No date found, filtering out');
-        return false;
-      }
-      
-      const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
-      if (!month || !day || !year) {
-        console.log('Invalid date parts:', { month, day, year });
-        return false;
-      }
-      
-      const rowDate = new Date(year, month - 1, day);
-      const isWithinRange = rowDate >= sevenDaysAgo;
-      console.log('Row date:', rowDate, 'within range?', isWithinRange);
-      
-      return isWithinRange;
-    });
+    // Temporarily remove date filtering to see all records from backend
+    console.log('Showing ALL records (no date filter applied) - count:', filteredData.length);
     
-    console.log('Filtered data after date filter:', filteredData);
+    // Keep original data without date filtering
     
     return filteredData.sort((a, b) => {
       let aValue: string | number;
