@@ -165,9 +165,9 @@ export const Leads = ({ user }: DashboardProps) => {
     
     let filteredData = [...sheetData];
     
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    console.log('Five days ago cutoff:', fiveDaysAgo);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    console.log('Thirty days ago cutoff:', thirtyDaysAgo);
     
     filteredData = filteredData.filter(row => {
       const rowDateStr = row.date;
@@ -185,7 +185,7 @@ export const Leads = ({ user }: DashboardProps) => {
       }
       
       const rowDate = new Date(year, month - 1, day);
-      const isWithinRange = rowDate >= fiveDaysAgo;
+      const isWithinRange = rowDate >= thirtyDaysAgo;
       console.log('Row date:', rowDate, 'within range?', isWithinRange);
       
       return isWithinRange;
