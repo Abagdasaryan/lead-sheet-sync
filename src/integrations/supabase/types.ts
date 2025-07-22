@@ -67,7 +67,7 @@ export type Database = {
           rep: string | null
           sf_order_id: string
           updated_at: string
-          user_id: string
+          user_id: string | null
           webhook_sent_at: string | null
         }
         Insert: {
@@ -81,7 +81,7 @@ export type Database = {
           rep?: string | null
           sf_order_id: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           webhook_sent_at?: string | null
         }
         Update: {
@@ -95,7 +95,7 @@ export type Database = {
           rep?: string | null
           sf_order_id?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           webhook_sent_at?: string | null
         }
         Relationships: []
