@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, Send } from "lucide-react";
+import { Trash2, Plus, Send, Save, Lock, Unlock } from "lucide-react";
 import { Product, JobLineItem } from "@/types/products";
 
 interface LineItemsModalProps {
@@ -22,17 +21,23 @@ interface LineItemsModalProps {
   userId: string;
 }
 
+interface UnifiedLineItem {
+  id?: string; // undefined for new items
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  isNew?: boolean; // flag to track if it's a new item
+}
+
 export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsModalProps) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [lineItems, setLineItems] = useState<JobLineItem[]>([]);
-  const [newLineItems, setNewLineItems] = useState<Array<{
-    productId: string;
-    quantity: number;
-    tempId: string;
-  }>>([]);
+  const [lineItems, setLineItems] = useState<UnifiedLineItem[]>([]);
   const [isJobLocked, setIsJobLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sendingWebhook, setSendingWebhook] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
 
   // Function to get webhook URL from database with fallback
@@ -85,7 +90,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobsError);
 
       if (existingJobs && existingJobs.length > 0) {
-        const existingJob = existingJobs[0]; // Use the first job if multiple exist
+        const existingJob = existingJobs[0];
         setIsJobLocked(!!existingJob.webhook_sent_at);
         console.log('🔍 Job found, ID:', existingJob.id, 'locked:', !!existingJob.webhook_sent_at);
         
@@ -98,13 +103,14 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
         if (lineItemsError) throw lineItemsError;
         
-        const transformedItems: JobLineItem[] = (lineItemsData || []).map(item => ({
+        const transformedItems: UnifiedLineItem[] = (lineItemsData || []).map(item => ({
           id: item.id,
           productId: item.product_id,
           productName: item.product_name,
           quantity: item.quantity,
           unitPrice: Number(item.unit_price),
-          total: Number(item.total)
+          total: Number(item.total),
+          isNew: false
         }));
         
         console.log('🔍 Transformed line items:', transformedItems);
@@ -114,6 +120,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         setIsJobLocked(false);
         setLineItems([]);
       }
+      setHasUnsavedChanges(false);
     } catch (error: any) {
       console.error('❌ Error fetching line items:', error);
       setIsJobLocked(false);
@@ -122,42 +129,94 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   };
 
   const addNewLineItem = () => {
-    setNewLineItems([...newLineItems, {
+    const newItem: UnifiedLineItem = {
       productId: "",
+      productName: "",
       quantity: 1,
-      tempId: Math.random().toString(36)
-    }]);
+      unitPrice: 0,
+      total: 0,
+      isNew: true
+    };
+    setLineItems([...lineItems, newItem]);
+    setHasUnsavedChanges(true);
   };
 
-  const updateNewLineItem = (tempId: string, field: 'productId' | 'quantity', value: string | number) => {
-    setNewLineItems(newLineItems.map(item => 
-      item.tempId === tempId ? { ...item, [field]: value } : item
-    ));
-  };
-
-  const removeNewLineItem = (tempId: string) => {
-    setNewLineItems(newLineItems.filter(item => item.tempId !== tempId));
-  };
-
-  const saveBatchLineItems = async () => {
-    console.log('💾 Starting to save batch line items:', newLineItems);
+  const updateLineItem = (index: number, field: keyof UnifiedLineItem, value: string | number) => {
+    const updatedItems = [...lineItems];
+    const item = updatedItems[index];
     
-    if (newLineItems.length === 0) {
+    if (field === 'productId') {
+      const selectedProduct = products.find(p => p.id === value);
+      if (selectedProduct) {
+        item.productId = selectedProduct.id;
+        item.productName = selectedProduct.name;
+        item.unitPrice = selectedProduct.unit_price;
+        item.total = selectedProduct.unit_price * item.quantity;
+      }
+    } else if (field === 'quantity') {
+      item.quantity = Number(value);
+      item.total = item.unitPrice * item.quantity;
+    } else {
+      (item as any)[field] = value;
+    }
+    
+    setLineItems(updatedItems);
+    setHasUnsavedChanges(true);
+  };
+
+  const removeLineItem = async (index: number) => {
+    const item = lineItems[index];
+    
+    if (item.id) {
+      // Existing item - delete from database
+      try {
+        const { error } = await supabase
+          .from('job_line_items')
+          .delete()
+          .eq('id', item.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Line item removed successfully",
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Remove from local state
+    const updatedItems = lineItems.filter((_, i) => i !== index);
+    setLineItems(updatedItems);
+    setHasUnsavedChanges(true);
+  };
+
+  const saveAllChanges = async () => {
+    console.log('💾 Starting to save all changes');
+    
+    const newItems = lineItems.filter(item => item.isNew && item.productId);
+    const invalidItems = newItems.filter(item => !item.productId || item.quantity < 1);
+    
+    if (invalidItems.length > 0) {
+      console.log('❌ Invalid items found:', invalidItems);
       toast({
         title: "Error",
-        description: "No line items to save",
+        description: "Please fill all product selections and quantities for new items",
         variant: "destructive",
       });
       return;
     }
 
-    const invalidItems = newLineItems.filter(item => !item.productId || item.quantity < 1);
-    if (invalidItems.length > 0) {
-      console.log('❌ Invalid items found:', invalidItems);
+    if (newItems.length === 0) {
       toast({
-        title: "Error",
-        description: "Please fill all product selections and quantities",
-        variant: "destructive",
+        title: "Info",
+        description: "No new items to save",
       });
       return;
     }
@@ -182,7 +241,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       }
 
       if (existingJobs && existingJobs.length > 0) {
-        jobId = existingJobs[0].id; // Use the first job if multiple exist
+        jobId = existingJobs[0].id;
         console.log('✅ Found existing job with ID:', jobId);
       } else {
         // Create job record
@@ -211,20 +270,15 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         console.log('✅ Created new job with ID:', jobId);
       }
 
-      // Prepare batch inserts
-      const lineItemsToInsert = newLineItems.map(item => {
-        const selectedProduct = products.find(p => p.id === item.productId);
-        if (!selectedProduct) throw new Error(`Product not found: ${item.productId}`);
-        
-        return {
-          job_id: jobId,
-          product_id: selectedProduct.id,
-          product_name: selectedProduct.name,
-          quantity: item.quantity,
-          unit_price: selectedProduct.unit_price,
-          total: selectedProduct.unit_price * item.quantity
-        };
-      });
+      // Prepare batch inserts for new items only
+      const lineItemsToInsert = newItems.map(item => ({
+        job_id: jobId,
+        product_id: item.productId,
+        product_name: item.productName,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        total: item.total
+      }));
 
       console.log('💾 Inserting line items:', lineItemsToInsert);
 
@@ -237,7 +291,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
       if (insertError) throw insertError;
 
-      setNewLineItems([]);
       console.log('🔄 Refreshing line items after save');
       await fetchLineItems();
       
@@ -257,34 +310,13 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     }
   };
 
-  const removeLineItem = async (lineItemId: string) => {
-    try {
-      const { error } = await supabase
-        .from('job_line_items')
-        .delete()
-        .eq('id', lineItemId);
-
-      if (error) throw error;
-      
-      await fetchLineItems();
-      toast({
-        title: "Success",
-        description: "Line item removed successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   const sendWebhook = async () => {
-    if (lineItems.length === 0) {
+    const savedItems = lineItems.filter(item => !item.isNew);
+    
+    if (savedItems.length === 0) {
       toast({
         title: "Error",
-        description: "No line items to send",
+        description: "No saved line items to send. Please save your changes first.",
         variant: "destructive",
       });
       return;
@@ -310,7 +342,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
             installDate: jobData.install_date,
             sfOrderId: jobData.sf_order_id
           },
-          lineItems: lineItems.map(item => ({
+          lineItems: savedItems.map(item => ({
             productId: item.productId,
             productName: item.productName,
             quantity: item.quantity,
@@ -323,12 +355,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       if (error) throw error;
 
       // Update the job to mark webhook as sent and lock it
-      const jobToUpdate = lineItems.length > 0 ? await supabase
+      const jobToUpdate = await supabase
         .from('jobs_sold')
         .select('id')
         .eq('sf_order_id', jobData.sf_order_id)
         .eq('user_id', userId)
-        .single() : null;
+        .single();
 
       if (jobToUpdate?.data) {
         await supabase
@@ -339,10 +371,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
       // Lock the job after successful webhook send
       setIsJobLocked(true);
+      setHasUnsavedChanges(false);
       
       toast({
         title: "Success",
-        description: "Webhook sent successfully",
+        description: "Webhook sent successfully. Job is now locked.",
       });
     } catch (error: any) {
       toast({
@@ -361,227 +394,196 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       fetchProducts();
       fetchLineItems();
     }
-  }, [isOpen, jobData.sf_order_id]); // Added dependency on sf_order_id
+  }, [isOpen, jobData.sf_order_id]);
 
-  const existingTotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-  const newItemsTotal = newLineItems.reduce((sum, item) => {
-    const product = products.find(p => p.id === item.productId);
-    return sum + (product ? product.unit_price * item.quantity : 0);
-  }, 0);
-  const total = existingTotal + newItemsTotal;
+  const total = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const newItemsCount = lineItems.filter(item => item.isNew).length;
+  const savedItemsCount = lineItems.filter(item => !item.isNew).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] overflow-hidden bg-gradient-to-br from-background to-secondary/10 flex flex-col">
+      <DialogContent className="max-w-5xl h-[90vh] overflow-hidden bg-gradient-to-br from-background to-secondary/10 flex flex-col">
         <DialogHeader className="border-b border-border/50 pb-2 mb-3 flex-shrink-0">
-          <DialogTitle className="text-xl font-bold text-foreground">
-            Manage Line Items {isJobLocked && <span className="text-amber-600">(Locked)</span>}
+          <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+            {isJobLocked ? (
+              <>
+                <Lock className="w-5 h-5 text-amber-600" />
+                Manage Line Items (Locked)
+              </>
+            ) : (
+              <>
+                <Unlock className="w-5 h-5 text-green-600" />
+                Manage Line Items (Editable)
+              </>
+            )}
           </DialogTitle>
+          <DialogDescription>
+            Job: {jobData.job_number} • Client: {jobData.client}
+            {isJobLocked && " • This job cannot be edited after webhook has been sent"}
+          </DialogDescription>
         </DialogHeader>
         
-        {/* Job Info Card */}
-        <div className="bg-gradient-to-r from-primary/15 to-primary/5 p-3 rounded-lg border border-primary/30 mb-3 flex-shrink-0">
-          <div className="text-lg font-bold text-primary">Job: {jobData.job_number}</div>
-          <div className="text-base font-semibold text-foreground">{jobData.client}</div>
-          {isJobLocked && (
-            <div className="text-amber-600 font-medium text-sm mt-1">
-              ⚠️ This job cannot be edited after webhook has been sent
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              Saved: {savedItemsCount} • New: {newItemsCount}
             </div>
-          )}
+            <div className="text-lg font-bold text-primary">
+              Total: ${total.toFixed(2)}
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            {!isJobLocked && (
+              <>
+                <Button onClick={addNewLineItem} variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+                {hasUnsavedChanges && (
+                  <Button 
+                    onClick={saveAllChanges} 
+                    disabled={loading}
+                    variant="default"
+                    size="sm"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {loading ? "Saving..." : `Save Changes (${newItemsCount})`}
+                  </Button>
+                )}
+              </>
+            )}
+            {savedItemsCount > 0 && !isJobLocked && (
+              <Button 
+                onClick={sendWebhook} 
+                disabled={sendingWebhook || hasUnsavedChanges}
+                variant="default"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {sendingWebhook ? "Sending..." : "Send Webhook"}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area - Scrollable */}
         <div className="flex-1 overflow-y-auto space-y-4 px-1">
-          {/* Add Multiple Line Items */}
-          {!isJobLocked && (
-            <div className="bg-card border rounded-lg p-4 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Add New Line Items</h3>
-                <Button onClick={addNewLineItem} variant="outline" size="sm" className="text-primary border-primary hover:bg-primary/10">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Item
-                </Button>
-              </div>
-              
-              {newLineItems.map((item, index) => (
-                <div key={item.tempId} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 bg-muted/30 border rounded-md">
-                  <div className="md:col-span-2">
-                    <Label className="text-xs font-medium">Product</Label>
-                    <Select 
-                      value={item.productId} 
-                      onValueChange={(value) => updateNewLineItem(item.tempId, 'productId', value)}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select product..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} - ${product.unit_price}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs font-medium">Qty</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateNewLineItem(item.tempId, 'quantity', parseInt(e.target.value) || 1)}
-                      className="h-8"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2 flex items-end">
-                    {(() => {
-                      const product = products.find(p => p.id === item.productId);
-                      return product ? (
-                        <div className="text-sm font-semibold text-primary">
-                          Total: ${(product.unit_price * item.quantity).toFixed(2)}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          Select product for total
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  
-                  <div className="flex items-end justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeNewLineItem(item.tempId)}
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              
-              {newLineItems.length > 0 && (
-                <div className="flex justify-between items-center p-3 bg-primary/5 rounded border-l-4 border-primary">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-semibold text-primary">
-                      Items to Save: {newLineItems.length}
-                    </div>
-                    <div className="text-lg font-bold text-green-600">
-                      Batch Total: ${newLineItems.reduce((sum, item) => {
-                        const product = products.find(p => p.id === item.productId);
-                        return sum + (product ? product.unit_price * item.quantity : 0);
-                      }, 0).toFixed(2)}
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={saveBatchLineItems} 
-                    disabled={loading}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    {loading ? "Saving..." : `Save All (${newLineItems.length})`}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Existing Line Items */}
+          {/* Line Items */}
           <div className="bg-card border rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b bg-muted/30">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-foreground">
-                  Current Line Items ({lineItems.length})
-                </h3>
-              </div>
+              <h3 className="font-semibold text-foreground">
+                Line Items ({lineItems.length})
+              </h3>
             </div>
             
             {lineItems.length > 0 ? (
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-3">
                 {/* Grid Header */}
                 <div className="grid grid-cols-12 gap-3 p-2 bg-muted/50 rounded text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  <div className="col-span-5">Product</div>
-                  <div className="col-span-2 text-center">Quantity</div>
-                  <div className="col-span-2 text-center">Unit Price</div>
-                  <div className="col-span-2 text-center">Total</div>
-                  {!isJobLocked && <div className="col-span-1 text-center">Actions</div>}
+                  <div className="col-span-4">Product</div>
+                  <div className="col-span-2">Quantity</div>
+                  <div className="col-span-2">Unit Price</div>
+                  <div className="col-span-2">Total</div>
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-1">Actions</div>
                 </div>
-                
+
                 {/* Line Items */}
                 {lineItems.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-3 p-3 bg-background border rounded hover:bg-muted/20 transition-colors">
-                    <div className="col-span-5">
-                      <div className="font-medium text-foreground">{item.productName}</div>
+                  <div 
+                    key={item.id || index} 
+                    className={`grid grid-cols-12 gap-3 p-3 rounded border ${
+                      item.isNew ? 'bg-blue-50 border-blue-200' : 'bg-background border-border'
+                    }`}
+                  >
+                    <div className="col-span-4">
+                      {item.isNew && !isJobLocked ? (
+                        <Select 
+                          value={item.productId} 
+                          onValueChange={(value) => updateLineItem(index, 'productId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name} - ${product.unit_price}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="font-medium">{item.productName}</div>
+                      )}
                     </div>
-                    <div className="col-span-2 text-center">
-                      <span className="inline-flex items-center justify-center w-8 h-6 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">
-                        {item.quantity}
-                      </span>
+                    
+                    <div className="col-span-2">
+                      {item.isNew && !isJobLocked ? (
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        />
+                      ) : (
+                        <div>{item.quantity}</div>
+                      )}
                     </div>
-                    <div className="col-span-2 text-center font-medium text-foreground">
-                      ${item.unitPrice.toFixed(2)}
+                    
+                    <div className="col-span-2">
+                      <div>${item.unitPrice.toFixed(2)}</div>
                     </div>
-                    <div className="col-span-2 text-center font-bold text-green-600">
-                      ${item.total.toFixed(2)}
+                    
+                    <div className="col-span-2">
+                      <div className="font-semibold">${item.total.toFixed(2)}</div>
                     </div>
-                    {!isJobLocked && (
-                      <div className="col-span-1 text-center">
+                    
+                    <div className="col-span-1">
+                      {item.isNew ? (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">NEW</span>
+                      ) : (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">SAVED</span>
+                      )}
+                    </div>
+                    
+                    <div className="col-span-1">
+                      {!isJobLocked && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeLineItem(item.id)}
+                          onClick={() => removeLineItem(index)}
                           className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                No line items yet. Add some line items above.
+              <div className="p-8 text-center text-muted-foreground">
+                <div className="mb-2">No line items yet</div>
+                {!isJobLocked && (
+                  <Button onClick={addNewLineItem} variant="outline" size="sm">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add your first line item
+                  </Button>
+                )}
               </div>
             )}
           </div>
 
-          {/* Empty State */}
-          {lineItems.length === 0 && newLineItems.length === 0 && !isJobLocked && (
-            <div className="text-center py-8 text-muted-foreground">
-              <div className="text-lg font-medium mb-2">No line items yet</div>
-              <div className="text-sm">Click "Add Item" to get started</div>
+          {/* Save Warning */}
+          {hasUnsavedChanges && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">
+              ⚠️ You have unsaved changes. Please save your changes before sending the webhook.
             </div>
           )}
-        </div>
-
-        {/* Fixed Bottom Actions */}
-        <div className="absolute bottom-0 left-0 right-0 bg-background border-t p-4">
-          <div className="flex justify-between items-center">
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700"
-            >
-              Cancel
-            </Button>
-            
-            {lineItems.length > 0 && !isJobLocked && (
-              <Button 
-                onClick={async () => {
-                  await sendWebhook();
-                  onClose();
-                }} 
-                disabled={sendingWebhook}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {sendingWebhook ? "Saving..." : "Save and Close"}
-              </Button>
-            )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>

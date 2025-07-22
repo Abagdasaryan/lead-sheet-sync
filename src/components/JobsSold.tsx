@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { User } from "@supabase/supabase-js";
-import { RefreshCw, DollarSign, Package, Settings, CheckCircle } from "lucide-react";
+import { RefreshCw, DollarSign, Package, Settings, CheckCircle, Lock, Unlock } from "lucide-react";
 import { MobileDataCard } from "./MobileDataCard";
 import { LineItemsModal } from "./LineItemsModal";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ interface JobData {
     quantity: number;
   }>;
   webhookSent?: boolean;
+  webhookSentAt?: string;
 }
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
@@ -225,11 +226,16 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                             </div>
                             
                             <div className="flex items-center gap-2">
-                              {job.webhookSent && (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Sent
-                                </Badge>
+                              {job.webhookSent ? (
+                                <div className="flex items-center gap-1">
+                                  <Lock className="w-3 h-3 text-amber-600" />
+                                  <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Sent
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <Unlock className="w-3 h-3 text-green-600" />
                               )}
                               <Button
                                 size="sm"
@@ -259,25 +265,46 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                   /* Desktop Table View */
                   <div className="rounded-lg border overflow-hidden">
                     <table className="w-full">
-                       <thead className="bg-muted/50">
-                         <tr>
-                            <th className="px-4 py-3 text-left font-medium">Client</th>
-                            <th className="px-4 py-3 text-left font-medium">Job Number</th>
-                            <th className="px-4 py-3 text-left font-medium">Amount</th>
-                            <th className="px-4 py-3 text-left font-medium">Install Date</th>
-                            <th className="px-4 py-3 text-left font-medium">Payment Type</th>
-                            <th className="px-4 py-3 text-left font-medium">Line Items</th>
-                            <th className="px-4 py-3 text-left font-medium">Actions</th>
-                         </tr>
-                       </thead>
+                        <thead className="bg-muted/50">
+                          <tr>
+                             <th className="px-4 py-3 text-left font-medium">Status</th>
+                             <th className="px-4 py-3 text-left font-medium">Client</th>
+                             <th className="px-4 py-3 text-left font-medium">Job Number</th>
+                             <th className="px-4 py-3 text-left font-medium">Amount</th>
+                             <th className="px-4 py-3 text-left font-medium">Install Date</th>
+                             <th className="px-4 py-3 text-left font-medium">Payment Type</th>
+                             <th className="px-4 py-3 text-left font-medium">Line Items</th>
+                             <th className="px-4 py-3 text-left font-medium">Actions</th>
+                          </tr>
+                        </thead>
                        <tbody>
-                         {jobs.map((job, index) => (
-                           <tr key={job.id || index} className="border-t hover:bg-muted/30">
-                                <td className="px-4 py-3">{job.client || 'Unknown'}</td>
-                                <td className="px-4 py-3">{job.job_number || 'N/A'}</td>
-                                <td className="px-4 py-3 font-medium">${parseFloat(job.price_sold?.toString() || '0').toLocaleString()}</td>
-                                <td className="px-4 py-3">{job.install_date || 'N/A'}</td>
-                                <td className="px-4 py-3">{job.payment_type || 'N/A'}</td>
+                          {jobs.map((job, index) => (
+                            <tr key={job.id || index} className="border-t hover:bg-muted/30">
+                                 <td className="px-4 py-3">
+                                   <div className="flex items-center gap-2">
+                                     {job.webhookSent ? (
+                                       <div className="flex items-center gap-1">
+                                         <Lock className="w-4 h-4 text-amber-600" />
+                                         <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                           <CheckCircle className="w-3 h-3 mr-1" />
+                                           Locked
+                                         </Badge>
+                                       </div>
+                                     ) : (
+                                       <div className="flex items-center gap-1">
+                                         <Unlock className="w-4 h-4 text-green-600" />
+                                         <Badge variant="outline" className="text-green-600 border-green-600">
+                                           Editable
+                                         </Badge>
+                                       </div>
+                                     )}
+                                   </div>
+                                 </td>
+                                 <td className="px-4 py-3">{job.client || 'Unknown'}</td>
+                                 <td className="px-4 py-3">{job.job_number || 'N/A'}</td>
+                                 <td className="px-4 py-3 font-medium">${parseFloat(job.price_sold?.toString() || '0').toLocaleString()}</td>
+                                 <td className="px-4 py-3">{job.install_date || 'N/A'}</td>
+                                 <td className="px-4 py-3">{job.payment_type || 'N/A'}</td>
                                  <td className="px-4 py-3">
                                    <div className="flex flex-wrap gap-1 max-w-xs">
                                      {job.lineItems && job.lineItems.length > 0 ? (
