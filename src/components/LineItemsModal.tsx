@@ -17,6 +17,10 @@ interface LineItemsModalProps {
     client: string;
     job_number: string;
     install_date: string;
+    lineItems?: Array<{
+      product_name: string;
+      quantity: number;
+    }>;
   };
   userId: string;
 }
@@ -116,9 +120,24 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         console.log('🔍 Transformed line items:', transformedItems);
         setLineItems(transformedItems);
       } else {
-        console.log('🔍 No existing job found');
+        console.log('🔍 No existing job found, checking backend data for line items');
         setIsJobLocked(false);
-        setLineItems([]);
+        
+        // If no database line items exist, populate from backend data if available
+        if (jobData.lineItems && jobData.lineItems.length > 0) {
+          console.log('🔍 Populating from backend line items:', jobData.lineItems);
+          const backendItems: UnifiedLineItem[] = jobData.lineItems.map(item => ({
+            productId: "", // Will need to be selected by user
+            productName: item.product_name,
+            quantity: item.quantity,
+            unitPrice: 0, // Will need to be set by user
+            total: 0,
+            isNew: true // Mark as new since they're not in database yet
+          }));
+          setLineItems(backendItems);
+        } else {
+          setLineItems([]);
+        }
       }
       setHasUnsavedChanges(false);
     } catch (error: any) {

@@ -84,7 +84,42 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       if (error) throw error;
 
       console.log('Jobs data from backend:', data);
-      setJobs(data.rows || []);
+      
+      // Deduplicate line items for each job
+      const jobsWithDeduplicatedLineItems = (data.rows || []).map((job: JobData) => {
+        if (job.lineItems && job.lineItems.length > 0) {
+          const originalCount = job.lineItems.length;
+          
+          // Create a map to track unique line items by product_name
+          const uniqueLineItems = new Map();
+          
+          job.lineItems.forEach(item => {
+            const key = item.product_name;
+            if (uniqueLineItems.has(key)) {
+              // If duplicate found, sum the quantities
+              const existing = uniqueLineItems.get(key);
+              existing.quantity += item.quantity;
+            } else {
+              uniqueLineItems.set(key, { ...item });
+            }
+          });
+          
+          const deduplicatedItems = Array.from(uniqueLineItems.values());
+          
+          if (originalCount !== deduplicatedItems.length) {
+            console.log(`🔄 Deduplicated line items for job ${job.job_number}: ${originalCount} → ${deduplicatedItems.length}`);
+          }
+          
+          return {
+            ...job,
+            lineItems: deduplicatedItems,
+            lineItemsCount: deduplicatedItems.length
+          };
+        }
+        return job;
+      });
+      
+      setJobs(jobsWithDeduplicatedLineItems);
       toast({
         title: "Jobs loaded",
         description: `Found ${data.rows?.length || 0} jobs${profile?.rep_alias ? ' using alias' : ''}.`,
@@ -197,7 +232,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                 {isMobile ? (
                   <div className="space-y-3">
                     {jobs.map((job, index) => (
-                      <Card key={job.id || index} className="hover:shadow-md transition-shadow">
+                      <Card key={job.job_number} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
@@ -279,7 +314,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                         </thead>
                        <tbody>
                           {jobs.map((job, index) => (
-                            <tr key={job.id || index} className="border-t hover:bg-muted/30">
+                            <tr key={job.job_number} className="border-t hover:bg-muted/30">
                                  <td className="px-4 py-3">
                                    <div className="flex items-center gap-2">
                                      {job.webhookSent ? (
@@ -353,7 +388,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
               sf_order_id: selectedJob.sf_order_id,
               client: selectedJob.client,
               job_number: selectedJob.job_number,
-              install_date: selectedJob.install_date
+              install_date: selectedJob.install_date,
+              lineItems: selectedJob.lineItems
             }}
             userId={user.id}
           />
