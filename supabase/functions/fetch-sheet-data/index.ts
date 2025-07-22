@@ -39,7 +39,7 @@ serve(async (req) => {
 
     // Leads Sheet configuration
     const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
-    const range = 'A1:ZZ8000';
+    const range = 'A1:ZZ15000';
     console.log('Using LEADS sheet');
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
