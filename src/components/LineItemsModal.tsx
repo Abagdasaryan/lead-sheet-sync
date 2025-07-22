@@ -375,7 +375,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       
       toast({
         title: "Success",
-        description: "Webhook sent successfully. Job is now locked.",
+        description: "Sent to build successfully. Job is now locked.",
       });
     } catch (error: any) {
       toast({
@@ -419,7 +419,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           </DialogTitle>
           <DialogDescription>
             Job: {jobData.job_number} • Client: {jobData.client}
-            {isJobLocked && " • This job cannot be edited after webhook has been sent"}
+            {isJobLocked && " • This job cannot be edited after being sent to build"}
           </DialogDescription>
         </DialogHeader>
         
@@ -463,7 +463,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Send className="mr-2 h-4 w-4" />
-                {sendingWebhook ? "Sending..." : "Send Webhook"}
+                {sendingWebhook ? "Sending..." : "Send to Build"}
               </Button>
             )}
           </div>
@@ -581,7 +581,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           {/* Save Warning */}
           {hasUnsavedChanges && (
             <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800">
-              ⚠️ You have unsaved changes. Please save your changes before sending the webhook.
+              ⚠️ You have unsaved changes. Please save your changes before sending to build.
             </div>
           )}
         </div>
