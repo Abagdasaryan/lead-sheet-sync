@@ -17,9 +17,9 @@ serve(async (req) => {
   }
 
   try {
-    const { userEmail, userAlias, sheetType, requestId } = await req.json();
-    console.log('Request details:', { userEmail, userAlias, sheetType, requestId });
-    console.log('Fetching data for user email:', userEmail, 'alias:', userAlias, 'sheetType:', sheetType || 'leads');
+    const { userEmail, userAlias, requestId } = await req.json();
+    console.log('Request details:', { userEmail, userAlias, requestId });
+    console.log('Fetching leads data for user email:', userEmail, 'alias:', userAlias);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -37,19 +37,10 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained, length:', accessToken.length);
 
-    // Route to different sheets based on sheetType
-    let spreadsheetId, range;
-    if (sheetType === 'jobs-sold') {
-      // Jobs Sold Sheet
-      spreadsheetId = '1dIUosPCFVqn3UCU34X_XS4VZbXI6At8pE1lScoYp_TA';
-      range = 'A1:ZZ8000';
-      console.log('Using JOBS SOLD sheet');
-    } else {
-      // Default to Leads Sheet  
-      spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
-      range = 'A1:ZZ8000';
-      console.log('Using LEADS sheet');
-    }
+    // Leads Sheet configuration
+    const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
+    const range = 'A1:ZZ8000';
+    console.log('Using LEADS sheet');
     console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
 
@@ -89,25 +80,14 @@ serve(async (req) => {
     console.log('Headers found:', headers);
     console.log('Total rows to process:', rows.length);
 
-    // Schema-aware processing based on sheet type
-    let allowedColumns, slugColumn;
-    
-    if (sheetType === 'jobs-sold') {
-      // Jobs Sold Sheet columns
-      allowedColumns = ['install_date', 'client', 'job_number', 'rep', 'price_sold', 'payment_type', 'sf_order_id'];
-      slugColumn = 'Rep_slug'; // Different column name for jobs sold
-      console.log('Using JOBS SOLD schema');
-    } else {
-      // Leads Sheet columns (existing)
-      allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
-      slugColumn = 'RepEmail'; // Original column name for leads
-      console.log('Using LEADS schema');
-    }
-    
+    // Leads Sheet schema
+    const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
+    const slugColumn = 'RepEmail';
+    console.log('Using LEADS schema');
     console.log('Looking for slug column:', slugColumn);
     console.log('Expected data columns:', allowedColumns);
     
-    // Find the slug column (Rep_slug for jobs, RepEmail for leads)
+    // Find the RepEmail column for leads
     const slugIndex = headers.findIndex(header => {
       const lowerHeader = header.toLowerCase().trim();
       const targetSlug = slugColumn.toLowerCase().replace(/_/g, '');
@@ -123,31 +103,10 @@ serve(async (req) => {
     
     console.log(`${slugColumn} column found at index:`, slugIndex);
     
-    // Different date filtering logic based on sheet type
-    let dateColumnIndex;
-    if (sheetType === 'jobs-sold') {
-      // Find install_date column for jobs sold
-      dateColumnIndex = headers.findIndex(h => h?.toLowerCase().includes('install_date') || h?.toLowerCase().includes('installdate'));
-      if (dateColumnIndex === -1) {
-        console.log('install_date column not found, using column index 2 as fallback');
-        dateColumnIndex = 2;
-      }
-    } else {
-      // Use column C (index 2) for leads
-      dateColumnIndex = 2;
-    }
-    
+    // Use column C (index 2) for leads date
+    const dateColumnIndex = 2;
     console.log('Using date column index:', dateColumnIndex);
     console.log('Date column header:', headers[dateColumnIndex]);
-    
-    // Calculate date filter (> 7 days ago for jobs sold, existing logic for leads)
-    let dateFilter;
-    if (sheetType === 'jobs-sold') {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      dateFilter = sevenDaysAgo;
-      console.log('Jobs sold date filter (must be after):', dateFilter.toISOString());
-    }
     
     // Helper function to normalize values for comparison
     const normalizeValue = (value) => {
@@ -169,24 +128,7 @@ serve(async (req) => {
       // Check slug match
       const isSlugMatch = slugValueNormalized === filterValueNormalized;
       
-      // Check date filter for jobs sold
-      if (sheetType === 'jobs-sold' && isSlugMatch) {
-        const dateStr = row[dateColumnIndex];
-        if (dateStr) {
-          try {
-            const rowDate = new Date(dateStr);
-            const isDateValid = rowDate > dateFilter;
-            console.log(`Date check for row ${index + 1}: ${dateStr} (${rowDate.toISOString()}) > ${dateFilter.toISOString()}? ${isDateValid}`);
-            return isDateValid;
-          } catch (error) {
-            console.warn('Invalid date format:', dateStr);
-            return false;
-          }
-        }
-        return false;
-      }
-      
-      // For leads, use existing logic (no additional date filtering here)
+      // For leads, return all matches (date filtering is done on frontend)
       if (isSlugMatch) {
         console.log(`✓ MATCH found at row ${index + 1}:`, {
           slugValue: slugValue,
@@ -225,70 +167,6 @@ serve(async (req) => {
       return obj;
     });
 
-    // For jobs-sold, enrich with database status
-    if (sheetType === 'jobs-sold') {
-      console.log('Enriching jobs-sold data with database status...');
-      
-      // Get the authorization header for database access
-      const authHeader = req.headers.get('Authorization');
-      if (!authHeader) {
-        console.warn('No authorization header for database access');
-      } else {
-        try {
-          // Fetch database data to check status and get line items
-          const dbResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/jobs_sold?select=sf_order_id,webhook_sent_at,id,job_line_items(product_name,quantity)`, {
-            headers: {
-              'Authorization': authHeader,
-              'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
-              'Content-Type': 'application/json'
-            }
-          });
-
-          let existingJobs = [];
-          if (dbResponse.ok) {
-            existingJobs = await dbResponse.json();
-            console.log('Existing jobs in database:', existingJobs.length);
-          }
-
-          // Create a map for quick lookup
-          const jobStatusMap = new Map(
-            existingJobs.map(job => [job.sf_order_id, {
-              id: job.id,
-              webhookSent: !!job.webhook_sent_at,
-              webhookSentAt: job.webhook_sent_at,
-              lineItems: job.job_line_items || []
-            }])
-          );
-
-          // Merge sheet data with database status
-          const enrichedRows = processedRows.map(row => {
-            const dbStatus = jobStatusMap.get(row.sf_order_id);
-            return {
-              ...row,
-              // Convert price_sold to lead_sold_for for backwards compatibility
-              lead_sold_for: parseFloat(row.price_sold) || 0,
-              leadSoldFor: parseFloat(row.price_sold) || 0,
-              // Add database status
-              hasLineItems: !!dbStatus && dbStatus.lineItems.length > 0,
-              lineItems: dbStatus?.lineItems || [],
-              lineItemsCount: dbStatus?.lineItems?.length || 0,
-              webhookSent: dbStatus?.webhookSent || false,
-              webhookSentAt: dbStatus?.webhookSentAt || null,
-              jobId: dbStatus?.id || null
-            };
-          });
-
-          console.log('Enriched data with database status:', enrichedRows.length, 'rows');
-          
-          return new Response(JSON.stringify({ rows: enrichedRows }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        } catch (error) {
-          console.warn('Error enriching with database status:', error);
-          // Fall back to returning sheet data without enrichment
-        }
-      }
-    }
 
     return new Response(JSON.stringify({ rows: processedRows }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
