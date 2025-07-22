@@ -473,7 +473,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                 )}
               </>
             )}
-            {savedItemsCount > 0 && !isJobLocked && (
+            {lineItems.length > 0 && !isJobLocked && (
               <Button 
                 onClick={sendWebhook} 
                 disabled={sendingWebhook || hasUnsavedChanges}
