@@ -51,6 +51,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     setLoading(true);
     try {
       // Fetch jobs with line items directly from database
+      // RLS policies now filter by rep field matching user's full_name
       const { data: jobsData, error: jobsError } = await supabase
         .from('jobs_sold')
         .select(`
@@ -63,8 +64,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             unit_price,
             total
           )
-        `)
-        .eq('user_id', user.id);
+        `);
 
       if (jobsError) throw jobsError;
 
