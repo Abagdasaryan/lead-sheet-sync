@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Plus, Send, Save, Lock, Unlock } from "lucide-react";
 import { Product, JobLineItem } from "@/types/products";
+import { useSecureWebhook } from "@/hooks/useSecureWebhook";
+import { validateNumericInput, sanitizeInput } from "@/lib/validation";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 
 interface LineItemsModalProps {
   isOpen: boolean;
@@ -43,25 +46,10 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
+  const { getSecureWebhookUrl, validateWebhookPayload } = useSecureWebhook();
+  const { handleError } = useErrorHandler();
 
-  // Function to get webhook URL from database with fallback
-  const getWebhookUrl = async (webhookName: string, fallbackUrl: string): Promise<string> => {
-    try {
-      const { data, error } = await supabase
-        .from('webhook_configs')
-        .select('url')
-        .eq('name', webhookName)
-        .eq('is_active', true)
-        .single();
-      
-      if (data && !error) {
-        return data.url;
-      }
-    } catch (error) {
-      console.warn(`Failed to fetch webhook config for ${webhookName}, using fallback:`, error);
-    }
-    return fallbackUrl;
-  };
+  // Removed - now using useSecureWebhook hook
 
   const fetchProducts = async () => {
     try {
@@ -323,11 +311,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       });
     } catch (error: any) {
       console.error('❌ Error saving line items:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      handleError(error, 'Line Items Save');
     } finally {
       setLoading(false);
     }
@@ -348,31 +332,42 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     setSendingWebhook(true);
     try {
       // Get webhook URL from database with fallback
-      const webhookUrl = await getWebhookUrl(
+      const webhookUrl = await getSecureWebhookUrl(
         'job_webhook', 
         'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b'
       );
       
+      if (!webhookUrl) {
+        throw new Error('Could not get a valid webhook URL');
+      }
+      
+      // Validate webhook payload before sending
+      const payload = {
+        webhookUrl,
+        jobData: {
+          client: sanitizeInput(jobData.client),
+          jobNumber: sanitizeInput(jobData.job_number),
+          rep: "Sheet Import",
+          leadSoldFor: 0,
+          paymentType: "TBD",
+          installDate: jobData.install_date,
+          sfOrderId: sanitizeInput(jobData.sf_order_id)
+        },
+        lineItems: savedItems.map(item => ({
+          productId: sanitizeInput(item.productId),
+          productName: sanitizeInput(item.productName),
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total
+        }))
+      };
+      
+      if (!validateWebhookPayload(payload)) {
+        throw new Error('Invalid webhook payload');
+      }
+
       const { data, error } = await supabase.functions.invoke('send-job-webhook', {
-        body: {
-          webhookUrl,
-          jobData: {
-            client: jobData.client,
-            jobNumber: jobData.job_number,
-            rep: "Sheet Import",
-            leadSoldFor: 0,
-            paymentType: "TBD",
-            installDate: jobData.install_date,
-            sfOrderId: jobData.sf_order_id
-          },
-          lineItems: savedItems.map(item => ({
-            productId: item.productId,
-            productName: item.productName,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total
-          }))
-        }
+        body: payload
       });
 
       if (error) throw error;
@@ -400,11 +395,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         description: "Sent to build successfully. Job is now locked.",
       });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      handleError(error, 'Webhook Send');
     } finally {
       setSendingWebhook(false);
     }
@@ -549,16 +540,22 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                     </div>
                     
                     <div className="col-span-2">
-                      {item.isNew && !isJobLocked ? (
+                       {item.isNew && !isJobLocked ? (
                         <Input
                           type="number"
                           min="1"
+                          max="999"
                           value={item.quantity}
-                          onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          onChange={(e) => {
+                            const validation = validateNumericInput(e.target.value);
+                            if (validation.isValid && validation.number !== undefined) {
+                              updateLineItem(index, 'quantity', validation.number);
+                            }
+                          }}
                         />
-                      ) : (
+                       ) : (
                         <div>{item.quantity}</div>
-                      )}
+                       )}
                     </div>
                     
                     <div className="col-span-2">
