@@ -459,7 +459,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           <div className="flex gap-2">
             {!isJobLocked && (
               <>
-                <Button onClick={addNewLineItem} variant="outline" size="sm">
+                <Button 
+                  onClick={addNewLineItem} 
+                  variant="default" 
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Item
                 </Button>
@@ -590,12 +595,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
             ) : (
               <div className="p-8 text-center text-muted-foreground">
                 <div className="mb-2">No line items yet</div>
-                {!isJobLocked && (
-                  <Button onClick={addNewLineItem} variant="outline" size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add your first line item
-                  </Button>
-                )}
+                <div className="text-sm">Click "Add Item" above to get started</div>
               </div>
             )}
           </div>
