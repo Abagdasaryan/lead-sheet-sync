@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { User } from "@supabase/supabase-js";
+import { Profile, JobData } from "@/types/sheets";
 import { RefreshCw, DollarSign, Package, Settings, CheckCircle, Lock, Unlock } from "lucide-react";
 import { MobileDataCard } from "./MobileDataCard";
 import { LineItemsModal } from "./LineItemsModal";
@@ -18,33 +20,7 @@ interface JobsSoldProps {
   user: User;
 }
 
-interface Profile {
-  id: string;
-  user_id: string;
-  email: string;
-  rep_email: string | null;
-  rep_alias: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface JobData {
-  id?: string;
-  client: string;
-  job_number: string;
-  rep: string;
-  price_sold: string;
-  payment_type: string;
-  install_date: string;
-  sf_order_id: string;
-  lineItemsCount?: number;
-  lineItems?: Array<{
-    product_name: string;
-    quantity: number;
-  }>;
-  webhookSent?: boolean;
-  webhookSentAt?: string;
-}
+// Interfaces moved to types/sheets.ts
 
 export const JobsSold = ({ user }: JobsSoldProps) => {
   const [jobs, setJobs] = useState<JobData[]>([]);
@@ -53,6 +29,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [selectedJob, setSelectedJob] = useState<JobData | null>(null);
   const [lineItemsModalOpen, setLineItemsModalOpen] = useState(false);
   const { toast } = useToast();
+  const { handleError, handleSuccess } = useErrorHandler();
   const isMobile = useIsMobile();
 
   const fetchProfile = async () => {
@@ -66,7 +43,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       if (error) throw error;
       setProfile(data);
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
+      handleError(error, 'fetching profile');
     }
   };
 
@@ -112,17 +89,9 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       }));
       
       setJobs(transformedJobs);
-      toast({
-        title: "Jobs loaded",
-        description: `Found ${transformedJobs.length} jobs in database.`,
-      });
+      handleSuccess(`Found ${transformedJobs.length} jobs in database.`, "Jobs loaded");
     } catch (error: any) {
-      console.error('Error fetching jobs:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      handleError(error, 'fetching jobs');
     } finally {
       setLoading(false);
     }

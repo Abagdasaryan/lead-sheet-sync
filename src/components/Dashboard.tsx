@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { User } from "@supabase/supabase-js";
+import { LeadRow, Profile } from "@/types/sheets";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,18 +21,10 @@ interface DashboardProps {
   user: User;
 }
 
-interface Profile {
-  id: string;
-  user_id: string;
-  email: string;
-  rep_email: string | null;
-  rep_alias: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// Profile interface moved to types/sheets.ts
 
 export const Leads = ({ user }: DashboardProps) => {
-  const [sheetData, setSheetData] = useState<any[]>([]);
+  const [sheetData, setSheetData] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -38,6 +32,7 @@ export const Leads = ({ user }: DashboardProps) => {
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
+  const { handleError, handleSuccess, handleInfo } = useErrorHandler();
   const isMobile = useIsMobile();
 
   const editableColumns = ['Status', 'Lost Reason', 'Last Price'];
@@ -115,7 +110,7 @@ export const Leads = ({ user }: DashboardProps) => {
       if (error) throw error;
       setProfile(data);
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
+      handleError(error, 'fetching profile');
     }
   };
 
@@ -204,8 +199,8 @@ export const Leads = ({ user }: DashboardProps) => {
           const [aMonth, aDay, aYear] = aDateStr.split('/').map(num => parseInt(num) || 0);
           const [bMonth, bDay, bYear] = bDateStr.split('/').map(num => parseInt(num) || 0);
           
-          aValue = new Date(aYear, aMonth - 1, aDay).getTime();
-          bValue = new Date(bYear, bMonth - 1, bYear).getTime();
+           aValue = new Date(aYear, aMonth - 1, aDay).getTime();
+           bValue = new Date(bYear, bMonth - 1, bDay).getTime();
           break;
         case 'status':
           aValue = a.Status || '';

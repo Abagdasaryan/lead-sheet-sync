@@ -37,8 +37,8 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained, length:', accessToken.length);
 
-    // Leads Sheet configuration
-    const spreadsheetId = '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
+    // Leads Sheet configuration - get from environment
+    const spreadsheetId = Deno.env.get('GOOGLE_SPREADSHEET_ID') || '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
     const range = 'A1:ZZ15000';
     console.log('Using LEADS sheet');
     console.log('Spreadsheet ID:', spreadsheetId);
