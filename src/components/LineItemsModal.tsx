@@ -84,12 +84,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const fetchLineItems = async () => {
     console.log('🔍 Fetching line items for job:', jobData.sf_order_id, 'user:', userId);
     try {
-      // First, check if job exists in jobs_sold table
+      // First, check if job exists in jobs_sold table (RLS handles filtering by rep)
       const { data: existingJobs, error: jobsError } = await supabase
         .from('jobs_sold')
         .select('id, webhook_sent_at')
-        .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId);
+        .eq('sf_order_id', jobData.sf_order_id);
 
       console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobsError);
 
@@ -249,8 +248,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       const { data: existingJobs, error: jobQueryError } = await supabase
         .from('jobs_sold')
         .select('id')
-        .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId);
+        .eq('sf_order_id', jobData.sf_order_id);
 
       console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobQueryError);
 
@@ -263,15 +261,21 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         jobId = existingJobs[0].id;
         console.log('✅ Found existing job with ID:', jobId);
       } else {
+        // Get user's profile to use their full_name as rep
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', userId)
+          .single();
+          
         // Create job record
         console.log('➕ Creating new job record');
         const { data: newJob, error: jobError } = await supabase
           .from('jobs_sold')
           .insert({
-            user_id: userId,
             client: jobData.client,
             job_number: jobData.job_number,
-            rep: "Sheet Import",
+            rep: userProfile?.full_name || "Unknown Rep", // Use user's full_name for RLS
             lead_sold_for: 0,
             payment_type: "TBD",
             install_date: jobData.install_date,
@@ -378,7 +382,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         .from('jobs_sold')
         .select('id')
         .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId)
         .single();
 
       if (jobToUpdate?.data) {
