@@ -38,7 +38,7 @@ serve(async (req) => {
     console.log('Access token obtained, length:', accessToken.length);
 
     // Leads Sheet configuration - get from environment
-    const spreadsheetId = Deno.env.get('GOOGLE_SPREADSHEET_ID') || '1Rmw62vaMzwdRLGLafOpUVEhpdDsrFKd_tm-MWreU8lA';
+    const spreadsheetId = Deno.env.get('GOOGLE_SPREADSHEET_ID');
     const range = 'A1:ZZ15000';
     console.log('Using LEADS sheet');
     console.log('Spreadsheet ID:', spreadsheetId);
