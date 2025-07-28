@@ -52,40 +52,34 @@ export const useRateLimit = (key: string, config: Partial<RateLimitConfig> = {})
       return false;
     }
     
-    // Reset if block period has passed
-    if (state.isBlocked && now >= state.blockUntil) {
-      const newState = {
-        attempts: 0,
-        lastAttempt: 0,
-        isBlocked: false,
-        blockUntil: 0,
-      };
-      setState(newState);
-      localStorage.setItem(`rateLimit_${key}`, JSON.stringify(newState));
-      return true;
-    }
-    
-    // Check if window has reset
-    if (now - state.lastAttempt > finalConfig.windowMs) {
-      const newState = {
-        attempts: 0,
-        lastAttempt: 0,
-        isBlocked: false,
-        blockUntil: 0,
-      };
-      setState(newState);
-      localStorage.setItem(`rateLimit_${key}`, JSON.stringify(newState));
-      return true;
+    // Check if window has reset or block period has passed
+    if ((state.isBlocked && now >= state.blockUntil) || 
+        (now - state.lastAttempt > finalConfig.windowMs)) {
+      return true; // Don't update state here, let recordAttempt handle it
     }
     
     // Check if under limit
     return state.attempts < finalConfig.maxAttempts;
-  }, [state, finalConfig, key]);
+  }, [state.isBlocked, state.blockUntil, state.lastAttempt, state.attempts, finalConfig]);
 
   const recordAttempt = useCallback(() => {
     const now = Date.now();
-    const newAttempts = state.attempts + 1;
     
+    // Reset if window has passed or block period ended
+    if ((state.isBlocked && now >= state.blockUntil) || 
+        (now - state.lastAttempt > finalConfig.windowMs)) {
+      const newState = {
+        attempts: 1, // This is the new attempt
+        lastAttempt: now,
+        isBlocked: false,
+        blockUntil: 0,
+      };
+      setState(newState);
+      localStorage.setItem(`rateLimit_${key}`, JSON.stringify(newState));
+      return;
+    }
+    
+    const newAttempts = state.attempts + 1;
     let newState: RateLimitState;
     
     if (newAttempts >= finalConfig.maxAttempts) {
@@ -117,12 +111,17 @@ export const useRateLimit = (key: string, config: Partial<RateLimitConfig> = {})
   }, [state, finalConfig]);
 
   const remainingAttempts = Math.max(0, finalConfig.maxAttempts - state.attempts);
+  
+  // Calculate canProceed as a computed value, not a function call
+  const now = Date.now();
+  const canProceed = !(state.isBlocked && now < state.blockUntil) && 
+                    (state.attempts < finalConfig.maxAttempts);
 
   return {
-    canProceed: checkRateLimit(),
+    canProceed,
     recordAttempt,
     remainingAttempts,
-    isBlocked: state.isBlocked && Date.now() < state.blockUntil,
+    isBlocked: state.isBlocked && now < state.blockUntil,
     timeUntilReset: getTimeUntilReset(),
   };
 };
