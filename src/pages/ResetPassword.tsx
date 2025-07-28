@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { validatePassword } from "@/lib/validation";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -55,10 +56,12 @@ const ResetPassword = () => {
       return;
     }
 
-    if (password.length < 6) {
+    // Use validation from validation utility for consistency
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
       toast({
         title: "Error",
-        description: "Password must be at least 6 characters long.",
+        description: validation.message,
         variant: "destructive",
       });
       return;
@@ -112,7 +115,7 @@ const ResetPassword = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
             <div>
@@ -122,7 +125,7 @@ const ResetPassword = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

@@ -24,9 +24,37 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { userEmail, userAlias, requestId } = await req.json();
-    console.log('Request details:', { userEmail, userAlias, requestId });
-    console.log('Fetching leads data for user email:', userEmail, 'alias:', userAlias);
+    const requestBody = await req.json();
+    
+    // Validate required fields
+    if (!requestBody || typeof requestBody !== 'object') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const { userEmail, userAlias, requestId } = requestBody;
+    
+    // Validate userAlias or userEmail is provided
+    if (!userAlias && !userEmail) {
+      return new Response(
+        JSON.stringify({ error: 'userAlias or userEmail is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Sanitize inputs
+    const sanitizedUserEmail = userEmail ? String(userEmail).substring(0, 100) : null;
+    const sanitizedUserAlias = userAlias ? String(userAlias).substring(0, 50) : null;
+    console.log('Request details:', { userEmail: sanitizedUserEmail, userAlias: sanitizedUserAlias, requestId });
+    console.log('Fetching leads data for user email:', sanitizedUserEmail, 'alias:', sanitizedUserAlias);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -143,9 +171,9 @@ serve(async (req) => {
     };
     
     console.log('=== FILTERING DEBUG ===');
-    console.log('userEmail:', userEmail);
-    console.log('userAlias:', userAlias);
-    console.log('Filter value:', userAlias || userEmail);
+    console.log('userEmail:', sanitizedUserEmail);
+    console.log('userAlias:', sanitizedUserAlias);
+    console.log('Filter value:', sanitizedUserAlias || sanitizedUserEmail);
 
     // First, let's see all unique values in the RepEmail column for debugging
     const uniqueRepEmails = [...new Set(rows.map(row => row[slugIndex]).filter(Boolean))];
@@ -172,7 +200,7 @@ serve(async (req) => {
     const filteredRows = rows.filter((row, index) => {
       const slugValue = row[slugIndex];
       const slugValueNormalized = normalizeValue(slugValue);
-      const filterValueNormalized = normalizeValue(userAlias || userEmail);
+      const filterValueNormalized = normalizeValue(sanitizedUserAlias || sanitizedUserEmail);
       
       // Check slug match
       const isSlugMatch = slugValueNormalized === filterValueNormalized;

@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useRateLimit } from "@/hooks/useRateLimit";
+import { validateEmail } from "@/lib/validation";
 
 interface AuthFormProps {}
 
@@ -13,9 +15,31 @@ export const AuthForm = ({}: AuthFormProps) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const authRateLimit = useRateLimit('auth_attempts', { maxAttempts: 5, windowMs: 300000 }); // 5 attempts per 5 minutes
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check rate limit
+    if (!authRateLimit.canProceed) {
+      toast({
+        title: "Too many attempts",
+        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -43,6 +67,27 @@ export const AuthForm = ({}: AuthFormProps) => {
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check rate limit
+    if (!authRateLimit.canProceed) {
+      toast({
+        title: "Too many attempts",
+        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -72,6 +117,27 @@ export const AuthForm = ({}: AuthFormProps) => {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check rate limit
+    if (!authRateLimit.canProceed) {
+      toast({
+        title: "Too many attempts",
+        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate email
+    if (!validateEmail(email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {

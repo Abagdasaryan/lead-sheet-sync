@@ -43,6 +43,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const [lineItems, setLineItems] = useState<UnifiedLineItem[]>([]);
   const [isJobLocked, setIsJobLocked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
@@ -70,49 +71,49 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   };
 
   const fetchLineItems = async () => {
-    console.log('🔍 Fetching line items for job:', jobData.sf_order_id, 'user:', userId);
     try {
-      // First, check if job exists in jobs_sold table (RLS handles filtering by rep)
       const { data: existingJobs, error: jobsError } = await supabase
         .from('jobs_sold')
         .select('id, webhook_sent_at')
-        .eq('sf_order_id', jobData.sf_order_id);
-
-      console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobsError);
+        .eq('sf_order_id', jobData.sf_order_id)
+        .eq('user_id', userId);
 
       if (existingJobs && existingJobs.length > 0) {
         const existingJob = existingJobs[0];
         setIsJobLocked(!!existingJob.webhook_sent_at);
-        console.log('🔍 Job found, ID:', existingJob.id, 'locked:', !!existingJob.webhook_sent_at);
         
         const { data: lineItemsData, error: lineItemsError } = await supabase
           .from('job_line_items')
-          .select('*')
+          .select(`
+            id,
+            quantity,
+            unit_price,
+            total,
+            product_id,
+            product_name
+          `)
           .eq('job_id', existingJob.id);
 
-        console.log('🔍 Line items query result:', lineItemsData, 'error:', lineItemsError);
-
-        if (lineItemsError) throw lineItemsError;
+        if (lineItemsData) {
+          const transformedItems: UnifiedLineItem[] = lineItemsData.map(item => ({
+            id: item.id,
+            productId: item.product_id,
+            productName: item.product_name,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            total: item.total,
+            isFromDatabase: true
+          }));
         
-        const transformedItems: UnifiedLineItem[] = (lineItemsData || []).map(item => ({
-          id: item.id,
-          productId: item.product_id,
-          productName: item.product_name,
-          quantity: item.quantity,
-          unitPrice: Number(item.unit_price),
-          total: Number(item.total),
-          isNew: false
-        }));
-        
-        console.log('🔍 Transformed line items:', transformedItems);
-        setLineItems(transformedItems);
+          setLineItems(transformedItems);
+        } else {
+          setLineItems([]);
+        }
       } else {
-        console.log('🔍 No existing job found, checking backend data for line items');
         setIsJobLocked(false);
         
         // If no database line items exist, populate from backend data if available
         if (jobData.lineItems && jobData.lineItems.length > 0) {
-          console.log('🔍 Populating from backend line items:', jobData.lineItems);
           const backendItems: UnifiedLineItem[] = jobData.lineItems.map(item => ({
             productId: "", // Will need to be selected by user
             productName: item.product_name,
@@ -204,13 +205,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   };
 
   const saveAllChanges = async () => {
-    console.log('💾 Starting to save all changes');
+    setIsSaving(true);
     
-    const newItems = lineItems.filter(item => item.isNew && item.productId);
-    const invalidItems = newItems.filter(item => !item.productId || item.quantity < 1);
+    const invalidItems = lineItems.filter(item => !item.productId || item.quantity <= 0 || item.unitPrice <= 0);
     
     if (invalidItems.length > 0) {
-      console.log('❌ Invalid items found:', invalidItems);
       toast({
         title: "Error",
         description: "Please fill all product selections and quantities for new items",
@@ -219,35 +218,32 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       return;
     }
 
+    const newItems = lineItems.filter(item => item.isNew && item.productId);
     if (newItems.length === 0) {
       toast({
         title: "Info",
         description: "No new items to save",
       });
+      setIsSaving(false);
       return;
     }
 
-    setLoading(true);
     try {
       // First, ensure job exists in jobs_sold table
       let jobId;
-      console.log('🔍 Looking for existing job with sf_order_id:', jobData.sf_order_id, 'user_id:', userId);
       
       const { data: existingJobs, error: jobQueryError } = await supabase
         .from('jobs_sold')
         .select('id')
-        .eq('sf_order_id', jobData.sf_order_id);
-
-      console.log('🔍 Existing jobs query result:', existingJobs, 'error:', jobQueryError);
+        .eq('sf_order_id', jobData.sf_order_id)
+        .eq('user_id', userId);
 
       if (jobQueryError) {
-        console.error('❌ Error querying existing jobs:', jobQueryError);
         throw jobQueryError;
       }
 
       if (existingJobs && existingJobs.length > 0) {
         jobId = existingJobs[0].id;
-        console.log('✅ Found existing job with ID:', jobId);
       } else {
         // Get user's profile to use their full_name as rep
         const { data: userProfile } = await supabase
@@ -257,28 +253,26 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
           .single();
           
         // Create job record
-        console.log('➕ Creating new job record');
         const { data: newJob, error: jobError } = await supabase
           .from('jobs_sold')
           .insert({
+            user_id: userId,
             client: jobData.client,
             job_number: jobData.job_number,
-            rep: userProfile?.full_name || "Unknown Rep", // Use user's full_name for RLS
+            rep: userProfile?.full_name || "Unknown Rep",
             lead_sold_for: 0,
             payment_type: "TBD",
             install_date: jobData.install_date,
             sf_order_id: jobData.sf_order_id
           })
-          .select()
+          .select('id')
           .single();
 
-        console.log('➕ New job creation result:', newJob, 'error:', jobError);
         if (jobError) {
-          console.error('❌ Error creating job:', jobError);
           throw jobError;
         }
+
         jobId = newJob.id;
-        console.log('✅ Created new job with ID:', jobId);
       }
 
       // Prepare batch inserts for new items only
@@ -291,18 +285,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         total: item.total
       }));
 
-      console.log('💾 Inserting line items:', lineItemsToInsert);
-
       const { data: insertResult, error: insertError } = await supabase
         .from('job_line_items')
-        .insert(lineItemsToInsert)
-        .select();
-
-      console.log('💾 Line items insert result:', insertResult, 'error:', insertError);
+        .insert(lineItemsToInsert);
 
       if (insertError) throw insertError;
 
-      console.log('🔄 Refreshing line items after save');
       await fetchLineItems();
       
       toast({
@@ -310,10 +298,9 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
         description: `${lineItemsToInsert.length} line items saved successfully`,
       });
     } catch (error: any) {
-      console.error('❌ Error saving line items:', error);
       handleError(error, 'Line Items Save');
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -392,7 +379,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
   useEffect(() => {
     if (isOpen) {
-      console.log('🔄 Modal opened, fetching products and line items for job:', jobData.sf_order_id);
       fetchProducts();
       fetchLineItems();
     }
@@ -451,12 +437,12 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                 {hasUnsavedChanges && (
                   <Button 
                     onClick={saveAllChanges} 
-                    disabled={loading}
+                    disabled={isSaving}
                     variant="default"
                     size="sm"
                   >
                     <Save className="mr-2 h-4 w-4" />
-                    {loading ? "Saving..." : `Save Changes (${newItemsCount})`}
+                    {isSaving ? "Saving..." : `Save Changes (${newItemsCount})`}
                   </Button>
                 )}
               </>

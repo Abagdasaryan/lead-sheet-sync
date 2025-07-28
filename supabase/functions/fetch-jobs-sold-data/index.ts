@@ -11,12 +11,36 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const requestBody = await req.json();
-    console.log('=== EDGE FUNCTION START ===');
-    console.log('Request body received:', JSON.stringify(requestBody, null, 2));
+    
+    // Validate request body
+    if (!requestBody || typeof requestBody !== 'object') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
     
     const { userRepSlug, requestId } = requestBody;
-    console.log('Fetching jobs sold data for rep slug:', userRepSlug);
-    console.log('Request ID:', requestId);
+    
+    // Validate required field
+    if (!userRepSlug) {
+      return new Response(
+        JSON.stringify({ error: 'userRepSlug is required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Sanitize inputs
+    const sanitizedUserRepSlug = String(userRepSlug).substring(0, 50);
+    const sanitizedRequestId = requestId ? String(requestId).substring(0, 100) : undefined;
+    console.log('Fetching jobs sold data for rep slug:', sanitizedUserRepSlug);
+    console.log('Request ID:', sanitizedRequestId);
 
     // Get the authorization header for database access
     const authHeader = req.headers.get('Authorization');
@@ -34,9 +58,9 @@ export default async function handler(req: Request): Promise<Response> {
       },
       body: JSON.stringify({
         userEmail: requestBody.userEmail || 'abgutterinstall@gmail.com',
-        userAlias: userRepSlug,
+        userAlias: sanitizedUserRepSlug,
         sheetType: 'jobs-sold',
-        requestId
+        requestId: sanitizedRequestId
       })
     });
 

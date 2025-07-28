@@ -126,8 +126,7 @@ export const Leads = ({ user }: DashboardProps) => {
 
       if (error) throw error;
 
-      console.log('Raw data from backend:', data);
-      console.log('Rows data:', data.rows);
+      // Raw data received successfully
       
       setSheetData(data.rows || []);
       toast({
@@ -156,37 +155,30 @@ export const Leads = ({ user }: DashboardProps) => {
   }, [profile]);
 
   const filteredAndSortedData = React.useMemo(() => {
-    console.log('Starting with sheetData:', sheetData);
-    
-    let filteredData = [...sheetData];
+    if (!sheetData?.length) {
+      return [];
+    }
     
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    console.log('Seven days ago cutoff:', sevenDaysAgo);
     
-    filteredData = filteredData.filter(row => {
+    const filteredData = sheetData.filter((row: any) => {
       const rowDateStr = row.date;
-      console.log('Processing row date:', rowDateStr, 'for row:', row);
       
       if (!rowDateStr) {
-        console.log('No date found, filtering out');
         return false;
       }
       
-      const [month, day, year] = rowDateStr.split('/').map(num => parseInt(num));
+      const [month, day, year] = rowDateStr.split('/').map(Number);
       if (!month || !day || !year) {
-        console.log('Invalid date parts:', { month, day, year });
         return false;
       }
       
       const rowDate = new Date(year, month - 1, day);
       const isWithinRange = rowDate >= sevenDaysAgo;
-      console.log('Row date:', rowDate, 'within range?', isWithinRange);
       
       return isWithinRange;
     });
-    
-    console.log('Filtered data after 7-day filter:', filteredData);
     
     return filteredData.sort((a, b) => {
       let aValue: string | number;

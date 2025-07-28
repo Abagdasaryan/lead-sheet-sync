@@ -68,7 +68,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
 
       if (jobsError) throw jobsError;
 
-      console.log('Jobs data from database:', jobsData);
+      // Jobs data retrieved successfully
       
       // Transform database data to match current JobData interface
       const transformedJobs = (jobsData || []).map(job => ({

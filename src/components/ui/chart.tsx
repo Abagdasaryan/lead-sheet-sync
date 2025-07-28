@@ -74,28 +74,39 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
-      }}
-    />
-  )
+  // Generate CSS safely without dangerouslySetInnerHTML
+  const styleContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const themeRules = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color
+          return color ? `  --color-${key}: ${color};` : null
+        })
+        .filter(Boolean)
+        .join("\n")
+      
+      return `${prefix} [data-chart=${id}] {\n${themeRules}\n}`
+    })
+    .join("\n")
+
+  // Create a style element safely
+  React.useEffect(() => {
+    const styleElement = document.createElement('style')
+    styleElement.id = `chart-style-${id}`
+    styleElement.textContent = styleContent
+    document.head.appendChild(styleElement)
+
+    return () => {
+      const existingStyle = document.getElementById(`chart-style-${id}`)
+      if (existingStyle) {
+        document.head.removeChild(existingStyle)
+      }
+    }
+  }, [id, styleContent])
+
+  return null
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
