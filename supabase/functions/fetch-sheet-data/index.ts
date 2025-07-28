@@ -42,6 +42,20 @@ serve(async (req) => {
     const range = 'A1:ZZ15000';
     console.log('Using LEADS sheet');
     console.log('Spreadsheet ID:', spreadsheetId);
+
+    if (!spreadsheetId) {
+      console.error('GOOGLE_SPREADSHEET_ID environment variable is not set');
+      return new Response(
+        JSON.stringify({ error: 'Google Spreadsheet ID is not configured' }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
     console.log('Range:', range);
 
     // Fetch data from Google Sheets
