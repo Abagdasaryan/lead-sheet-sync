@@ -14,31 +14,22 @@ Deno.serve(async (req) => {
   try {
     const { jobData, lineItems } = await req.json();
     
-    // Initialize Supabase client first
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get webhook URL from database
-    const { data: webhookConfig, error: webhookError } = await supabase
-      .from('webhook_configs')
-      .select('url')
-      .eq('name', 'job_webhook')
-      .eq('is_active', true)
-      .single();
-    
-    if (webhookError || !webhookConfig?.url) {
-      console.error('Job webhook not configured or inactive:', webhookError);
+    // Get webhook URL from Supabase secrets
+    const webhookUrl = Deno.env.get('WEBHOOK_JOB_URL');
+    if (!webhookUrl) {
       return new Response(
-        JSON.stringify({ error: 'Job webhook not configured' }),
+        JSON.stringify({ error: 'Webhook URL not configured in secrets' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
-    
-    const webhookUrl = webhookConfig.url;
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Supabase client already initialized above
 

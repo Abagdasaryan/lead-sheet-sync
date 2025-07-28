@@ -22,20 +22,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get webhook URL from database
-    const { data: webhookConfig, error: webhookError } = await supabase
-      .from('webhook_configs')
-      .select('url')
-      .eq('name', 'sheet_update_webhook')
-      .eq('is_active', true)
-      .single();
-    
-    if (webhookError || !webhookConfig?.url) {
-      console.error('Sheet update webhook not configured or inactive:', webhookError);
+    // Get webhook URL from Supabase secrets
+    const webhookUrl = Deno.env.get('WEBHOOK_SHEET_UPDATE_URL');
+    if (!webhookUrl) {
+      console.error('WEBHOOK_SHEET_UPDATE_URL secret not configured');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Sheet update webhook not configured' 
+          error: 'Webhook URL not configured' 
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -44,8 +38,7 @@ serve(async (req) => {
       );
     }
     
-    const webhookUrl = webhookConfig.url;
-    console.log('Using webhook URL from database');
+    console.log('Using webhook URL from secrets');
 
     // Prepare the payload for n8n webhook
     const webhookPayload = {
