@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,12 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { userEmail, userAlias, requestId } = await req.json();
     console.log('Request details:', { userEmail, userAlias, requestId });
     console.log('Fetching leads data for user email:', userEmail, 'alias:', userAlias);
@@ -37,16 +44,18 @@ serve(async (req) => {
     const accessToken = await getAccessToken(jwt);
     console.log('Access token obtained, length:', accessToken.length);
 
-    // Leads Sheet configuration - get from environment
-    const spreadsheetId = Deno.env.get('GOOGLE_SPREADSHEET_ID');
-    const range = 'A1:ZZ15000';
-    console.log('Using LEADS sheet');
-    console.log('Spreadsheet ID:', spreadsheetId);
+    // Get sheet configuration from database
+    const { data: sheetConfig, error: configError } = await supabase
+      .from('sheet_configs')
+      .select('spreadsheet_id')
+      .eq('name', 'leads_sheet')
+      .eq('is_active', true)
+      .single();
 
-    if (!spreadsheetId) {
-      console.error('GOOGLE_SPREADSHEET_ID environment variable is not set');
+    if (configError || !sheetConfig) {
+      console.error('Failed to get sheet configuration:', configError);
       return new Response(
-        JSON.stringify({ error: 'Google Spreadsheet ID is not configured' }),
+        JSON.stringify({ error: 'Sheet configuration not found or inactive' }),
         { 
           status: 500, 
           headers: { 
@@ -56,6 +65,11 @@ serve(async (req) => {
         }
       );
     }
+
+    const spreadsheetId = sheetConfig.spreadsheet_id;
+    const range = 'A1:ZZ15000';
+    console.log('Using LEADS sheet');
+    console.log('Spreadsheet ID:', spreadsheetId);
     console.log('Range:', range);
 
     // Fetch data from Google Sheets

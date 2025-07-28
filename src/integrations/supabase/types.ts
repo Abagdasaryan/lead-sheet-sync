@@ -169,6 +169,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sheet_configs: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          spreadsheet_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          spreadsheet_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          spreadsheet_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webhook_configs: {
         Row: {
           created_at: string
