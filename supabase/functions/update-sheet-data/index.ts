@@ -22,26 +22,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get webhook URL from database with fallback
-    let webhookUrl = 'https://n8n.srv858576.hstgr.cloud/webhook/5265ab2b-6ffb-46f8-bcb3-05f961cc40db'; // fallback
-    
-    try {
-      const { data: webhookConfig, error: configError } = await supabase
-        .from('webhook_configs')
-        .select('url')
-        .eq('name', 'sheet_update_webhook')
-        .eq('is_active', true)
-        .single();
-      
-      if (webhookConfig && !configError) {
-        webhookUrl = webhookConfig.url;
-        console.log('Using webhook URL from database:', webhookUrl);
-      } else {
-        console.log('Using fallback webhook URL');
-      }
-    } catch (error) {
-      console.warn('Failed to fetch webhook config, using fallback:', error);
+    // Get webhook URL from Supabase secrets
+    const webhookUrl = Deno.env.get('WEBHOOK_SHEET_UPDATE_URL');
+    if (!webhookUrl) {
+      console.error('WEBHOOK_SHEET_UPDATE_URL secret not configured');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Webhook URL not configured' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
     }
+    
+    console.log('Using webhook URL from secrets');
 
     // Prepare the payload for n8n webhook
     const webhookPayload = {

@@ -331,19 +331,8 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
     setSendingWebhook(true);
     try {
-      // Get webhook URL from database with fallback
-      const webhookUrl = await getSecureWebhookUrl(
-        'job_webhook', 
-        'https://n8n.srv858576.hstgr.cloud/webhook/4bcba099-6b2a-4177-87c3-8930046d675b'
-      );
-      
-      if (!webhookUrl) {
-        throw new Error('Could not get a valid webhook URL');
-      }
-      
-      // Validate webhook payload before sending
+      // Prepare and validate webhook payload
       const payload = {
-        webhookUrl,
         jobData: {
           client: sanitizeInput(jobData.client),
           jobNumber: sanitizeInput(jobData.job_number),

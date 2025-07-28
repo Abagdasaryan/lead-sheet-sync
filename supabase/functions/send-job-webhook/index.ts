@@ -12,13 +12,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { webhookUrl, jobData, lineItems } = await req.json();
+    const { jobData, lineItems } = await req.json();
     
+    // Get webhook URL from Supabase secrets
+    const webhookUrl = Deno.env.get('WEBHOOK_JOB_URL');
     if (!webhookUrl) {
       return new Response(
-        JSON.stringify({ error: 'Webhook URL is required' }),
+        JSON.stringify({ error: 'Webhook URL not configured in secrets' }),
         { 
-          status: 400, 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
