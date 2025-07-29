@@ -72,11 +72,18 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
   const fetchLineItems = async () => {
     try {
+      // Get user's profile to use their full_name for matching
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+        
       const { data: existingJobs, error: jobsError } = await supabase
         .from('jobs_sold')
         .select('id, webhook_sent_at')
         .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId);
+        .eq('rep', userProfile?.full_name);
 
       if (existingJobs && existingJobs.length > 0) {
         const existingJob = existingJobs[0];
@@ -232,11 +239,18 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       // First, ensure job exists in jobs_sold table
       let jobId;
       
+      // Get user's profile to use their full_name for matching
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+      
       const { data: existingJobs, error: jobQueryError } = await supabase
         .from('jobs_sold')
         .select('id')
         .eq('sf_order_id', jobData.sf_order_id)
-        .eq('user_id', userId);
+        .eq('rep', userProfile?.full_name);
 
       if (jobQueryError) {
         throw jobQueryError;
@@ -245,12 +259,6 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       if (existingJobs && existingJobs.length > 0) {
         jobId = existingJobs[0].id;
       } else {
-        // Get user's profile to use their full_name as rep
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('user_id', userId)
-          .single();
           
         // Create job record
         const { data: newJob, error: jobError } = await supabase
