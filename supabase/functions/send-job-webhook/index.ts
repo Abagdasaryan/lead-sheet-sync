@@ -67,13 +67,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get user's profile to match with rep field
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', user.id)
+      .single();
+
     // Find existing job or create if doesn't exist
     let jobId;
     const { data: existingJobs } = await supabase
       .from('jobs_sold')
       .select('id')
       .eq('sf_order_id', jobData.sfOrderId)
-      .eq('user_id', user.id);
+      .eq('rep', userProfile?.full_name);
 
     if (existingJobs && existingJobs.length > 0) {
       jobId = existingJobs[0].id;
