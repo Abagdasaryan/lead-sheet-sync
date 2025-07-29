@@ -116,6 +116,8 @@ export const Leads = ({ user }: DashboardProps) => {
 
   const fetchSheetData = async () => {
     setLoading(true);
+    console.log('Fetching sheet data with profile:', profile);
+    console.log('User alias being sent:', profile?.rep_alias);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
