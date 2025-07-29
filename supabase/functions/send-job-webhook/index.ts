@@ -116,8 +116,14 @@ Deno.serve(async (req) => {
       console.log('Created new job ID:', jobId);
     }
 
-    // Save line items to Supabase
-    if (lineItems && lineItems.length > 0) {
+    // Check if line items already exist for this job
+    const { data: existingLineItems } = await supabase
+      .from('job_line_items')
+      .select('id')
+      .eq('job_id', jobId);
+
+    // Only save line items if none exist yet (avoid duplicates)
+    if (lineItems && lineItems.length > 0 && (!existingLineItems || existingLineItems.length === 0)) {
       const lineItemsToInsert = lineItems.map((item: any) => ({
         job_id: jobId,
         product_id: item.productId,
@@ -135,6 +141,8 @@ Deno.serve(async (req) => {
         console.error('Error saving line items:', lineItemsError);
         // Continue with webhook even if line items fail
       }
+    } else if (existingLineItems && existingLineItems.length > 0) {
+      console.log('Line items already exist for this job, skipping insertion');
     }
 
     // Fetch product details for line items
