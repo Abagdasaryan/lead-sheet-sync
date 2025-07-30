@@ -146,7 +146,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     const newItem: UnifiedLineItem = {
       productId: "",
       productName: "",
-      quantity: 1,
+      quantity: 0,
       unitPrice: 0,
       total: 0,
       isNew: true
@@ -528,11 +528,19 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                           type="number"
                           min="1"
                           max="999"
-                          value={item.quantity}
+                          step="1"
+                          placeholder="Enter quantity"
+                          value={item.quantity === 0 ? '' : item.quantity.toString()}
                           onChange={(e) => {
-                            const validation = validateNumericInput(e.target.value);
-                            if (validation.isValid && validation.number !== undefined) {
-                              updateLineItem(index, 'quantity', validation.number);
+                            const value = e.target.value;
+                            if (value === '') {
+                              updateLineItem(index, 'quantity', 0);
+                            } else {
+                              // Only allow whole numbers
+                              const numValue = parseInt(value);
+                              if (!isNaN(numValue) && numValue > 0 && numValue <= 999) {
+                                updateLineItem(index, 'quantity', numValue);
+                              }
                             }
                           }}
                         />
