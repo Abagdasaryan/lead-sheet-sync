@@ -161,8 +161,8 @@ export const Leads = ({ user }: DashboardProps) => {
       return [];
     }
     
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
     
     const filteredData = sheetData.filter((row: any) => {
       const rowDateStr = row.date;
@@ -177,7 +177,7 @@ export const Leads = ({ user }: DashboardProps) => {
       }
       
       const rowDate = new Date(year, month - 1, day);
-      const isWithinRange = rowDate >= sevenDaysAgo;
+      const isWithinRange = rowDate >= fourteenDaysAgo;
       
       return isWithinRange;
     });
