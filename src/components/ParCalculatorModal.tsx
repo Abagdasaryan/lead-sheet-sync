@@ -61,7 +61,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
       id: generateId(),
       productId: "",
       productName: "",
-      quantity: 1,
+      quantity: 0,
       unitPrice: 0,
       total: 0
     };
@@ -81,7 +81,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
         item.total = selectedProduct.unit_price * item.quantity;
       }
     } else if (field === 'quantity') {
-      const numValue = Math.max(0, Number(value));
+      const numValue = Math.max(0, Math.floor(Number(value) || 0));
       item.quantity = numValue;
       item.total = item.unitPrice * numValue;
     } else {
@@ -217,7 +217,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
                         type="number"
                         min="0"
                         step="1"
-                        value={item.quantity}
+                        value={item.quantity || ''}
                         onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
                         placeholder="Qty"
                         className="w-full"
