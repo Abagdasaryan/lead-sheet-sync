@@ -28,6 +28,7 @@ interface CalculatorLineItem {
 export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorModalProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [lineItems, setLineItems] = useState<CalculatorLineItem[]>([]);
+  const [adminFee, setAdminFee] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -106,6 +107,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
 
   const resetModal = () => {
     setLineItems([]);
+    setAdminFee(0);
   };
 
   useEffect(() => {
@@ -117,6 +119,13 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
   }, [isOpen]);
 
   const total = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const subtotalWithAdmin = total + adminFee;
+  const markups = [5, 10, 20, 30];
+  const markupCalculations = markups.map(percentage => ({
+    percentage,
+    amount: subtotalWithAdmin * (percentage / 100),
+    total: subtotalWithAdmin + (subtotalWithAdmin * (percentage / 100))
+  }));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -269,17 +278,68 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
             )}
           </div>
 
-          {/* Total Summary */}
-          {lineItems.length > 0 && (
-            <div className="bg-card border rounded-lg shadow-sm p-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-foreground">Calculation Summary</h3>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-primary">
-                    ${total.toFixed(2)}
+          {/* Admin Fee Section */}
+          <div className="bg-card border rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b bg-muted/30">
+              <h3 className="font-semibold text-foreground">Admin Fee</h3>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center gap-4">
+                <Label htmlFor="adminFee" className="text-sm font-medium min-w-0">
+                  Admin Fee ($)
+                </Label>
+                <Input
+                  id="adminFee"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={adminFee || ''}
+                  onChange={(e) => setAdminFee(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                  placeholder="0"
+                  className="w-32"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Summary */}
+          {(lineItems.length > 0 || adminFee > 0) && (
+            <div className="bg-card border rounded-lg shadow-sm">
+              <div className="px-4 py-3 border-b bg-muted/30">
+                <h3 className="font-semibold text-foreground">Pricing Summary</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                {/* Base Calculations */}
+                <div className="space-y-2 border-b border-border pb-4">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Line Items Total:</span>
+                    <span className="font-medium">${total.toFixed(2)}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Cost Estimate
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Admin Fee:</span>
+                    <span className="font-medium">${adminFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Subtotal:</span>
+                    <span>${subtotalWithAdmin.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Markup Options */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-foreground">Markup Options</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {markupCalculations.map(({ percentage, amount, total: markupTotal }) => (
+                      <div key={percentage} className="p-3 border rounded-lg bg-muted/20">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium text-primary">{percentage}% Markup</span>
+                          <span className="text-sm text-muted-foreground">+${amount.toFixed(2)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-lg font-bold">${markupTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
