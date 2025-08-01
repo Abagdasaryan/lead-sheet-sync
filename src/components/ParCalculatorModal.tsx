@@ -28,7 +28,7 @@ interface CalculatorLineItem {
 export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorModalProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [lineItems, setLineItems] = useState<CalculatorLineItem[]>([]);
-  const [adminFee, setAdminFee] = useState<number>(0);
+  const [adminFee, setAdminFee] = useState<number>(350);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -107,7 +107,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
 
   const resetModal = () => {
     setLineItems([]);
-    setAdminFee(0);
+    setAdminFee(350);
   };
 
   useEffect(() => {
