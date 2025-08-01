@@ -3,12 +3,13 @@ import React, { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, TrendingUp, ShoppingCart } from "lucide-react";
+import { LogOut, TrendingUp, ShoppingCart, Calculator } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Leads } from "./Dashboard";
 import { JobsSold } from "./JobsSold";
+import { ParCalculator } from "./ParCalculator";
 import { MobileHeader } from "./MobileHeader";
 
 interface MainDashboardProps {
@@ -63,7 +64,7 @@ export const MainDashboard = ({ user }: MainDashboardProps) => {
       <div className={`${isMobile ? 'px-4 pt-4' : 'max-w-7xl mx-auto px-6 pt-6'}`}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {!isMobile && (
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
               <TabsTrigger value="leads" className="flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4" />
                 <span>Leads</span>
@@ -71,6 +72,10 @@ export const MainDashboard = ({ user }: MainDashboardProps) => {
               <TabsTrigger value="jobs" className="flex items-center space-x-2">
                 <ShoppingCart className="h-4 w-4" />
                 <span>Jobs Sold</span>
+              </TabsTrigger>
+              <TabsTrigger value="calculator" className="flex items-center space-x-2">
+                <Calculator className="h-4 w-4" />
+                <span>Par Calculator</span>
               </TabsTrigger>
             </TabsList>
           )}
@@ -97,6 +102,15 @@ export const MainDashboard = ({ user }: MainDashboardProps) => {
                   <ShoppingCart className="h-4 w-4 mr-1" />
                   <span className="text-xs">Jobs</span>
                 </Button>
+                <Button
+                  variant={activeTab === "calculator" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setActiveTab("calculator")}
+                  className="flex-1 mx-1"
+                >
+                  <Calculator className="h-4 w-4 mr-1" />
+                  <span className="text-xs">Calc</span>
+                </Button>
               </div>
             </div>
           )}
@@ -107,6 +121,10 @@ export const MainDashboard = ({ user }: MainDashboardProps) => {
           
           <TabsContent value="jobs" className={`mt-6 ${isMobile ? 'pb-20' : ''}`}>
             <JobsSold user={user} />
+          </TabsContent>
+          
+          <TabsContent value="calculator" className={`mt-6 ${isMobile ? 'pb-20' : ''}`}>
+            <ParCalculator user={user} />
           </TabsContent>
         </Tabs>
       </div>
