@@ -304,43 +304,6 @@ export const Leads = ({ user }: DashboardProps) => {
           </Card>
         </div>
 
-        {/* Stats Cards - Hidden on mobile */}
-        {!isMobile && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{filteredAndSortedData.length}</div>
-                <p className="text-xs text-muted-foreground">from last 5 days</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">User Email</CardTitle>
-                <Database className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold truncate`}>{user.email}</div>
-                <p className="text-xs text-muted-foreground">authenticated user</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-elegant hover:shadow-hover transition-all duration-300 bg-gradient-to-br from-card to-card/80 border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Data Source</CardTitle>
-                <Filter className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>Google Sheets</div>
-                <p className="text-xs text-muted-foreground">live connection</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Data Display */}
         <div className="animate-slide-up" style={{ animationDelay: "0.3s" }}>
