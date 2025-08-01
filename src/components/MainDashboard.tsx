@@ -46,7 +46,7 @@ export const MainDashboard = ({ user }: MainDashboardProps) => {
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <h1 className="text-2xl font-bold">Dashboard</h1>
+                <h1 className="text-2xl font-bold">APGS Sales Rep Dashboard</h1>
                 <span className="text-sm text-muted-foreground">
                   Welcome back, {user.email}
                 </span>

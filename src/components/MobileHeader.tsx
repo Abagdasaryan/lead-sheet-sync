@@ -48,7 +48,7 @@ export const MobileHeader = ({ user, activeTab, onTabChange }: MobileHeaderProps
     <div className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <h1 className="text-lg font-bold truncate">Dashboard</h1>
+          <h1 className="text-lg font-bold truncate">APGS Sales Rep Dashboard</h1>
           <p className="text-xs text-muted-foreground truncate">
             {user.email}
           </p>
@@ -84,6 +84,13 @@ export const MobileHeader = ({ user, activeTab, onTabChange }: MobileHeaderProps
                   onClick={() => handleTabChange("jobs")}
                 >
                   Jobs Sold
+                </Button>
+                <Button
+                  variant={activeTab === "calculator" ? "default" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => handleTabChange("calculator")}
+                >
+                  Par Calculator
                 </Button>
               </div>
               
