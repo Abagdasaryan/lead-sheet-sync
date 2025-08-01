@@ -125,32 +125,42 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
       <div className={`${isMobile ? 'px-4' : 'max-w-7xl mx-auto px-6'} space-y-6`}>
         {/* Header Actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Jobs Sold</h2>
-            <p className="text-muted-foreground">Manage your completed jobs and track revenue</p>
-          </div>
-          
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button 
-              onClick={fetchJobsData} 
-              disabled={loading}
-              variant="outline"
-              className={`${isMobile ? 'w-full' : ''}`}
-            >
-              <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-              {loading ? "Loading..." : "Refresh"}
-            </Button>
+        <div className="animate-slide-up">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Jobs Sold
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Manage your completed jobs and track revenue
+              </p>
+            </div>
+            
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button 
+                onClick={fetchJobsData} 
+                disabled={loading}
+                className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105"
+                size="lg"
+              >
+                <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                {loading ? "Loading..." : "Refresh Data"}
+              </Button>
+            </div>
           </div>
         </div>
 
-
+        
         {/* Jobs Display */}
-        <Card>
+        <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <Card className="shadow-elegant border-border/50 bg-gradient-to-br from-card to-card/80">
           <CardHeader>
-            <CardTitle>Your Jobs</CardTitle>
-            <CardDescription>
-              Jobs linked to your email: {user.email}
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Package className="h-4 w-4 text-primary" />
+              Your Jobs
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Jobs linked to your email: <span className="font-medium text-foreground">{user.email}</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -314,6 +324,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
             )}
           </CardContent>
         </Card>
+        </div>
 
         {/* Line Items Modal */}
         {selectedJob && (

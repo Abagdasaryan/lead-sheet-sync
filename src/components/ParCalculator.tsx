@@ -26,27 +26,38 @@ export const ParCalculator = ({ user }: ParCalculatorProps) => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 animate-fade-in">
       <div className={`${isMobile ? 'px-4' : 'max-w-7xl mx-auto px-6'} space-y-6`}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Par Calculator</h2>
-            <p className="text-muted-foreground">Calculate project costs and pricing</p>
+        <div className="animate-slide-up">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Par Calculator
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Calculate project costs and pricing
+              </p>
+            </div>
+            
+            <Button 
+              onClick={openCalculatorModal}
+              className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105"
+              size="lg"
+            >
+              <Calculator className="mr-2 h-4 w-4" />
+              New Calculation
+            </Button>
           </div>
-          
-          <Button 
-            onClick={openCalculatorModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Calculator className="mr-2 h-4 w-4" />
-            New Calculation
-          </Button>
         </div>
 
-
+        
         {/* Main Content */}
-        <Card>
+        <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <Card className="shadow-elegant border-border/50 bg-gradient-to-br from-card to-card/80">
           <CardHeader>
-            <CardTitle>Get Started</CardTitle>
-            <CardDescription>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calculator className="h-4 w-4 text-primary" />
+              Get Started
+            </CardTitle>
+            <CardDescription className="text-sm">
               Use the calculator to estimate project costs and pricing
             </CardDescription>
           </CardHeader>
@@ -57,13 +68,14 @@ export const ParCalculator = ({ user }: ParCalculatorProps) => {
               <p className="text-sm text-muted-foreground mb-6">
                 Click "New Calculation" to start building your project estimate
               </p>
-              <Button onClick={openCalculatorModal} size="lg" className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={openCalculatorModal} size="lg" className="bg-primary hover:bg-primary/90 shadow-primary transition-all duration-300 hover:shadow-hover hover:scale-105">
                 <Plus className="mr-2 h-4 w-4" />
                 Start New Calculation
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
 
         {/* Calculator Modal */}
         <ParCalculatorModal
