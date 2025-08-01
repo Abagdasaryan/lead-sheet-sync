@@ -123,8 +123,8 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
   const markups = [5, 10, 20, 30];
   const markupCalculations = markups.map(percentage => ({
     percentage,
-    amount: subtotalWithAdmin * (percentage / 100),
-    total: subtotalWithAdmin + (subtotalWithAdmin * (percentage / 100))
+    amount: Math.round(subtotalWithAdmin * (percentage / 100)),
+    total: Math.round(subtotalWithAdmin + (subtotalWithAdmin * (percentage / 100)))
   }));
 
   return (
@@ -333,10 +333,10 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
                       <div key={percentage} className="p-3 border rounded-lg bg-muted/20">
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-medium text-primary">{percentage}% Markup</span>
-                          <span className="text-sm text-muted-foreground">+${amount.toFixed(2)}</span>
+                          <span className="text-sm text-muted-foreground">+${amount}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-lg font-bold">${markupTotal.toFixed(2)}</span>
+                          <span className="text-lg font-bold">${markupTotal}</span>
                         </div>
                       </div>
                     ))}
