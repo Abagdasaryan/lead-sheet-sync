@@ -131,10 +131,12 @@ export const Leads = ({ user }: DashboardProps) => {
       // Raw data received successfully
       
       setSheetData(data.rows || []);
-      toast({
-        title: "Data loaded",
-        description: `Found ${data.rows?.length || 0} rows${profile?.rep_alias ? ' using alias' : ''}.`,
-      });
+      if (!isMobile) {
+        toast({
+          title: "Data loaded",
+          description: `Found ${data.rows?.length || 0} rows${profile?.rep_alias ? ' using alias' : ''}.`,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
