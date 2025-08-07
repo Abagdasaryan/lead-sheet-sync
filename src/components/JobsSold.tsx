@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { User } from "@supabase/supabase-js";
@@ -28,8 +28,8 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobData | null>(null);
   const [lineItemsModalOpen, setLineItemsModalOpen] = useState(false);
-  const { toast } = useToast();
-  const { handleError, handleSuccess } = useErrorHandler();
+  
+  const { handleError } = useErrorHandler();
   const isMobile = useIsMobile();
 
   const fetchProfile = async () => {
@@ -89,7 +89,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       }));
       
       setJobs(transformedJobs);
-      handleSuccess(`Found ${transformedJobs.length} jobs in database.`, "Jobs loaded");
+      console.info(`Jobs loaded: ${transformedJobs.length}`);
     } catch (error: any) {
       handleError(error, 'fetching jobs');
     } finally {
