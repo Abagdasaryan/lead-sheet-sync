@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
             ProductName: item.productName,
             Quantity: item.quantity,
             UnitPrice: product?.unit_price || item.unitPrice,
-            PricebookEntryId: product?.pricebook2_id || null,
+            PricebookEntryId: product?.id || item.productId,
             installDate: jobData.installDate,
             jobNumber: jobData.jobNumber
           };
