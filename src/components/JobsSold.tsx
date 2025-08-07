@@ -89,7 +89,6 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       }));
       
       setJobs(transformedJobs);
-      handleSuccess(`Found ${transformedJobs.length} jobs in database.`, "Jobs loaded");
     } catch (error: any) {
       handleError(error, 'fetching jobs');
     } finally {

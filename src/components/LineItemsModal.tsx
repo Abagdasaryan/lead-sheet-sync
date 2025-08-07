@@ -404,7 +404,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl h-[90vh] overflow-hidden bg-gradient-to-br from-background to-secondary/10 flex flex-col">
+      <DialogContent className="max-w-5xl h-[90vh] overflow-hidden bg-gradient-to-br from-background to-secondary/10 flex flex-col sm:max-w-md sm:h-[85vh]">
         <DialogHeader className="border-b border-border/50 pb-2 mb-3 flex-shrink-0">
           <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
             {isJobLocked ? (
@@ -436,17 +436,18 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             {!isJobLocked && (
               <>
                 <Button 
                   onClick={addNewLineItem} 
                   variant="default" 
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-8 sm:px-3 sm:py-2 sm:h-auto"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Item
+                  <Plus className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Add Item</span>
+                  <span className="sm:hidden">Add</span>
                 </Button>
                 {hasUnsavedChanges && (
                   <Button 
@@ -454,9 +455,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                     disabled={isSaving}
                     variant="default"
                     size="sm"
+                    className="text-xs px-2 py-1 h-8 sm:px-3 sm:py-2 sm:h-auto"
                   >
-                    <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? "Saving..." : `Save Changes (${newItemsCount})`}
+                    <Save className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">{isSaving ? "Saving..." : `Save Changes (${newItemsCount})`}</span>
+                    <span className="sm:hidden">{isSaving ? "Save..." : "Save"}</span>
                   </Button>
                 )}
               </>
@@ -467,10 +470,11 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                 disabled={sendingWebhook || hasUnsavedChanges}
                 variant="default"
                 size="sm"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1 h-8 sm:px-3 sm:py-2 sm:h-auto"
               >
-                <Send className="mr-2 h-4 w-4" />
-                {sendingWebhook ? "Sending..." : "Send to Build"}
+                <Send className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{sendingWebhook ? "Sending..." : "Send to Build"}</span>
+                <span className="sm:hidden">{sendingWebhook ? "Send..." : "Send"}</span>
               </Button>
             )}
           </div>
@@ -487,9 +491,9 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
             </div>
             
             {lineItems.length > 0 ? (
-              <div className="p-4 space-y-3">
-                {/* Grid Header */}
-                <div className="grid grid-cols-12 gap-3 p-2 bg-muted/50 rounded text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <div className="p-2 sm:p-4 space-y-2 sm:space-y-3">
+                {/* Grid Header - Hidden on mobile, use responsive layout */}
+                <div className="hidden sm:grid grid-cols-12 gap-3 p-2 bg-muted/50 rounded text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <div className="col-span-4">Product</div>
                   <div className="col-span-2">Quantity</div>
                   <div className="col-span-2">Unit Price</div>
@@ -498,98 +502,192 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                   <div className="col-span-1">Actions</div>
                 </div>
 
-                {/* Line Items */}
+                {/* Line Items - Responsive Layout */}
                 {lineItems.map((item, index) => (
                   <div 
                     key={item.id || index} 
-                    className={`grid grid-cols-12 gap-3 p-3 rounded border ${
+                    className={`p-3 rounded border ${
                       item.isNew ? 'bg-blue-50 border-blue-200' : 'bg-background border-border'
                     }`}
                   >
-                    <div className="col-span-4">
-                      {item.isNew && !isJobLocked ? (
-                        <Select 
-                          value={item.productId} 
-                          onValueChange={(value) => updateLineItem(index, 'productId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((product) => (
-                              <SelectItem 
-                                key={product.id} 
-                                value={product.id}
-                                disabled={product.id === 'placeholder-select' && item.productId !== ''}
-                              >
-                                {product.id === 'placeholder-select' ? (
-                                  product.name
-                                ) : (
-                                  `${product.name} - $${product.unit_price}`
-                                )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="font-medium">{item.productName}</div>
-                      )}
+                    {/* Mobile Layout */}
+                    <div className="sm:hidden space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {item.isNew ? (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">NEW</span>
+                          ) : (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">SAVED</span>
+                          )}
+                          <div className="font-semibold text-lg">${item.total.toFixed(2)}</div>
+                        </div>
+                        {!isJobLocked && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeLineItem(index)}
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Product</Label>
+                          {item.isNew && !isJobLocked ? (
+                            <Select 
+                              value={item.productId} 
+                              onValueChange={(value) => updateLineItem(index, 'productId', value)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select product..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((product) => (
+                                  <SelectItem 
+                                    key={product.id} 
+                                    value={product.id}
+                                    disabled={product.id === 'placeholder-select' && item.productId !== ''}
+                                  >
+                                    {product.id === 'placeholder-select' ? (
+                                      product.name
+                                    ) : (
+                                      `${product.name} - $${product.unit_price}`
+                                    )}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <div className="font-medium text-sm">{item.productName}</div>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Quantity</Label>
+                            {item.isNew && !isJobLocked ? (
+                              <Input
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="1"
+                                placeholder="Qty"
+                                value={item.quantity === 0 ? '' : item.quantity.toString()}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '') {
+                                    updateLineItem(index, 'quantity', 0);
+                                  } else {
+                                    const numValue = parseInt(value);
+                                    if (!isNaN(numValue) && numValue > 0 && numValue <= 999) {
+                                      updateLineItem(index, 'quantity', numValue);
+                                    }
+                                  }
+                                }}
+                                className="h-9"
+                              />
+                            ) : (
+                              <div className="text-sm">{item.quantity}</div>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Unit Price</Label>
+                            <div className="text-sm">${item.unitPrice.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="col-span-2">
-                       {item.isNew && !isJobLocked ? (
-                        <Input
-                          type="number"
-                          min="1"
-                          max="999"
-                          step="1"
-                          placeholder="Enter quantity"
-                          value={item.quantity === 0 ? '' : item.quantity.toString()}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '') {
-                              updateLineItem(index, 'quantity', 0);
-                            } else {
-                              // Only allow whole numbers
-                              const numValue = parseInt(value);
-                              if (!isNaN(numValue) && numValue > 0 && numValue <= 999) {
-                                updateLineItem(index, 'quantity', numValue);
+
+                    {/* Desktop Layout */}
+                    <div className="hidden sm:grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
+                        {item.isNew && !isJobLocked ? (
+                          <Select 
+                            value={item.productId} 
+                            onValueChange={(value) => updateLineItem(index, 'productId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products.map((product) => (
+                                <SelectItem 
+                                  key={product.id} 
+                                  value={product.id}
+                                  disabled={product.id === 'placeholder-select' && item.productId !== ''}
+                                >
+                                  {product.id === 'placeholder-select' ? (
+                                    product.name
+                                  ) : (
+                                    `${product.name} - $${product.unit_price}`
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="font-medium">{item.productName}</div>
+                        )}
+                      </div>
+                      
+                      <div className="col-span-2">
+                         {item.isNew && !isJobLocked ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            max="999"
+                            step="1"
+                            placeholder="Enter quantity"
+                            value={item.quantity === 0 ? '' : item.quantity.toString()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '') {
+                                updateLineItem(index, 'quantity', 0);
+                              } else {
+                                const numValue = parseInt(value);
+                                if (!isNaN(numValue) && numValue > 0 && numValue <= 999) {
+                                  updateLineItem(index, 'quantity', numValue);
+                                }
                               }
-                            }
-                          }}
-                        />
-                       ) : (
-                        <div>{item.quantity}</div>
-                       )}
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <div>${item.unitPrice.toFixed(2)}</div>
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <div className="font-semibold">${item.total.toFixed(2)}</div>
-                    </div>
-                    
-                    <div className="col-span-1">
-                      {item.isNew ? (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">NEW</span>
-                      ) : (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">SAVED</span>
-                      )}
-                    </div>
-                    
-                    <div className="col-span-1">
-                      {!isJobLocked && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeLineItem(index)}
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                            }}
+                          />
+                         ) : (
+                          <div>{item.quantity}</div>
+                         )}
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <div>${item.unitPrice.toFixed(2)}</div>
+                      </div>
+                      
+                      <div className="col-span-2">
+                        <div className="font-semibold">${item.total.toFixed(2)}</div>
+                      </div>
+                      
+                      <div className="col-span-1">
+                        {item.isNew ? (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">NEW</span>
+                        ) : (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">SAVED</span>
+                        )}
+                      </div>
+                      
+                      <div className="col-span-1">
+                        {!isJobLocked && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeLineItem(index)}
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
