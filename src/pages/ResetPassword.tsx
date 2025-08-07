@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// Toast removed
+import { useToast } from "@/hooks/use-toast";
 import { validatePassword } from "@/lib/validation";
 
 const ResetPassword = () => {
@@ -13,7 +13,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  // Toast removed
+  const { toast } = useToast();
 
   useEffect(() => {
     // Handle the auth callback for password reset
@@ -21,33 +21,49 @@ const ResetPassword = () => {
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
-        // Invalid reset link - removed toast
+        toast({
+          title: "Invalid reset link",
+          description: "This password reset link is invalid or has expired.",
+          variant: "destructive",
+        });
         navigate("/auth");
         return;
       }
 
       // Check if we have a session but haven't confirmed email change yet
       if (!data.session) {
-        // Invalid reset link - removed toast
+        toast({
+          title: "Invalid reset link", 
+          description: "This password reset link is invalid or has expired.",
+          variant: "destructive",
+        });
         navigate("/auth");
       }
     };
 
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      // Passwords don't match - removed toast
+      toast({
+        title: "Error",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
       return;
     }
 
     // Use validation from validation utility for consistency
     const validation = validatePassword(password);
     if (!validation.isValid) {
-      // Invalid password - removed toast
+      toast({
+        title: "Error",
+        description: validation.message,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -60,7 +76,10 @@ const ResetPassword = () => {
       
       if (error) throw error;
       
-      // Success - removed toast
+      toast({
+        title: "Password updated successfully!",
+        description: "You can now login with your new password.",
+      });
       
       // Sign out the user so they can login with new password
       await supabase.auth.signOut();
@@ -68,7 +87,11 @@ const ResetPassword = () => {
       // Redirect to login page
       navigate("/auth");
     } catch (error: any) {
-      // Error - removed toast
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

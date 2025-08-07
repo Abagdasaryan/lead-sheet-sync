@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LogOut, TrendingUp, ShoppingCart, Calculator } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-// Toast removed
+import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Leads } from "./Dashboard";
 import { JobsSold } from "./JobsSold";
@@ -18,12 +18,15 @@ interface MainDashboardProps {
 
 export const MainDashboard = ({ user }: MainDashboardProps) => {
   const [activeTab, setActiveTab] = useState("leads");
-  // Toast removed
+  const { toast } = useToast();
   const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // Removed toast notification
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
   };
 
   return (

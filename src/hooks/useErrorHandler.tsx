@@ -1,7 +1,9 @@
-// Toast functionality removed - just console logging errors now
+import { useToast } from "@/hooks/use-toast";
 import { ApiError } from "@/types/sheets";
 
 export const useErrorHandler = () => {
+  const { toast } = useToast();
+
   const sanitizeErrorMessage = (message: string): string => {
     // Remove sensitive information from error messages
     return message
@@ -14,13 +16,13 @@ export const useErrorHandler = () => {
   };
 
   const handleError = (error: Error | ApiError | any, context?: string) => {
-    // Log full error for debugging
+    // Log full error for debugging (server-side only in production)
     console.error(`Error${context ? ` in ${context}` : ''}:`, error);
     
     let message = 'An unexpected error occurred';
     
     if (error?.message) {
-      // Sanitize error message
+      // Sanitize error message before showing to user
       message = sanitizeErrorMessage(error.message);
     }
     
@@ -35,15 +37,27 @@ export const useErrorHandler = () => {
       message = 'Session expired. Please log in again.';
     }
     
-    console.error(`${context ? `Error in ${context}` : 'Error'}: ${message}`);
+    const title = context ? `Error in ${context}` : 'Error';
+    
+    toast({
+      title,
+      description: message,
+      variant: "destructive",
+    });
   };
 
   const handleSuccess = (message: string, title = "Success") => {
-    console.log(`${title}: ${message}`);
+    toast({
+      title,
+      description: message,
+    });
   };
 
   const handleInfo = (message: string, title = "Info") => {
-    console.log(`${title}: ${message}`);
+    toast({
+      title,
+      description: message,
+    });
   };
 
   return {
