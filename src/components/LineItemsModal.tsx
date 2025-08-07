@@ -57,7 +57,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('name');
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setProducts(data || []);
@@ -161,11 +161,17 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     
     if (field === 'productId') {
       const selectedProduct = products.find(p => p.id === value);
-      if (selectedProduct) {
+      if (selectedProduct && selectedProduct.id !== 'placeholder-select') {
         item.productId = selectedProduct.id;
         item.productName = selectedProduct.name;
         item.unitPrice = selectedProduct.unit_price;
         item.total = selectedProduct.unit_price * item.quantity;
+      } else if (selectedProduct?.id === 'placeholder-select') {
+        // Reset to empty state if placeholder is selected
+        item.productId = "";
+        item.productName = "";
+        item.unitPrice = 0;
+        item.total = 0;
       }
     } else if (field === 'quantity') {
       item.quantity = Number(value);
@@ -214,7 +220,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const saveAllChanges = async () => {
     setIsSaving(true);
     
-    const invalidItems = lineItems.filter(item => !item.productId || item.quantity <= 0 || item.unitPrice <= 0);
+    const invalidItems = lineItems.filter(item => !item.productId || item.productId === 'placeholder-select' || item.quantity <= 0 || item.unitPrice <= 0);
     
     if (invalidItems.length > 0) {
       toast({
@@ -511,8 +517,16 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
                           </SelectTrigger>
                           <SelectContent>
                             {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name} - ${product.unit_price}
+                              <SelectItem 
+                                key={product.id} 
+                                value={product.id}
+                                disabled={product.id === 'placeholder-select' && item.productId !== ''}
+                              >
+                                {product.id === 'placeholder-select' ? (
+                                  product.name
+                                ) : (
+                                  `${product.name} - $${product.unit_price}`
+                                )}
                               </SelectItem>
                             ))}
                           </SelectContent>
