@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+// Toast removed
 import { Trash2, Plus, Send, Save, Lock, Unlock } from "lucide-react";
 import { Product, JobLineItem } from "@/types/products";
 import { useSecureWebhook } from "@/hooks/useSecureWebhook";
@@ -46,7 +46,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
   const [isSaving, setIsSaving] = useState(false);
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const { toast } = useToast();
+  // Toast removed
   const { getSecureWebhookUrl, validateWebhookPayload } = useSecureWebhook();
   const { handleError } = useErrorHandler();
 
@@ -62,11 +62,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       if (error) throw error;
       setProducts(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch products",
-        variant: "destructive",
-      });
+      // Error fetching products - removed toast
     }
   };
 
@@ -197,16 +193,9 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
         if (error) throw error;
         
-        toast({
-          title: "Success",
-          description: "Line item removed successfully",
-        });
+        // Success - removed toast
       } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Error - removed toast
         return;
       }
     }
@@ -223,20 +212,13 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     const invalidItems = lineItems.filter(item => !item.productId || item.productId === 'placeholder-select' || item.quantity <= 0 || item.unitPrice <= 0);
     
     if (invalidItems.length > 0) {
-      toast({
-        title: "Error",
-        description: "Please fill all product selections and quantities for new items",
-        variant: "destructive",
-      });
+      // Invalid items - removed toast
       return;
     }
 
     const newItems = lineItems.filter(item => item.isNew && item.productId);
     if (newItems.length === 0) {
-      toast({
-        title: "Info",
-        description: "No new items to save",
-      });
+      // No new items - removed toast
       setIsSaving(false);
       return;
     }
@@ -307,10 +289,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
 
       await fetchLineItems();
       
-      toast({
-        title: "Success",
-        description: `${lineItemsToInsert.length} line items saved successfully`,
-      });
+      // Success - removed toast
     } catch (error: any) {
       handleError(error, 'Line Items Save');
     } finally {
@@ -322,11 +301,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
     const savedItems = lineItems.filter(item => !item.isNew);
     
     if (savedItems.length === 0) {
-      toast({
-        title: "Error",
-        description: "No saved line items to send. Please save your changes first.",
-        variant: "destructive",
-      });
+      // No saved items - removed toast
       return;
     }
 
@@ -380,10 +355,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       setIsJobLocked(true);
       setHasUnsavedChanges(false);
       
-      toast({
-        title: "Success",
-        description: "Sent to build successfully. Job is now locked.",
-      });
+      // Success - removed toast
     } catch (error: any) {
       handleError(error, 'Webhook Send');
     } finally {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+// Toast removed
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { User } from "@supabase/supabase-js";
@@ -31,8 +31,8 @@ export const Leads = ({ user }: DashboardProps) => {
   const [editedRowData, setEditedRowData] = useState<any | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'status' | 'client'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const { toast } = useToast();
-  const { handleError, handleSuccess, handleInfo } = useErrorHandler();
+  // Toast removed
+  const { handleError, handleInfo } = useErrorHandler();
   const isMobile = useIsMobile();
 
   const editableColumns = ['Status', 'Lost Reason', 'Last Price'];
@@ -40,10 +40,7 @@ export const Leads = ({ user }: DashboardProps) => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
+    // Removed toast notification
   };
 
   const handleEdit = (rowData: any) => {
@@ -73,17 +70,10 @@ export const Leads = ({ user }: DashboardProps) => {
       setEditingRowId(null);
       setEditedRowData(null);
 
-      toast({
-        title: "Success",
-        description: "Row updated successfully in Google Sheets",
-      });
+      // Success - removed toast
     } catch (error: any) {
       console.error('Error saving to Google Sheets:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save changes to Google Sheets",
-        variant: "destructive",
-      });
+      // Error - removed toast
     }
   };
 
@@ -131,18 +121,9 @@ export const Leads = ({ user }: DashboardProps) => {
       // Raw data received successfully
       
       setSheetData(data.rows || []);
-      if (!isMobile) {
-        toast({
-          title: "Data loaded",
-          description: `Found ${data.rows?.length || 0} rows${profile?.rep_alias ? ' using alias' : ''}.`,
-        });
-      }
+      // Success - removed toast
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Error - removed toast
     } finally {
       setLoading(false);
     }

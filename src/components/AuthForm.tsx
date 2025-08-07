@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+// Toast removed
 import { useRateLimit } from "@/hooks/useRateLimit";
 import { validateEmail } from "@/lib/validation";
 
@@ -14,7 +14,7 @@ export const AuthForm = ({}: AuthFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  // Toast removed
   const authRateLimit = useRateLimit('auth_attempts', { maxAttempts: 5, windowMs: 300000 }); // 5 attempts per 5 minutes
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -22,21 +22,13 @@ export const AuthForm = ({}: AuthFormProps) => {
     
     // Check rate limit
     if (!authRateLimit.canProceed) {
-      toast({
-        title: "Too many attempts",
-        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
-        variant: "destructive",
-      });
+      // Rate limit exceeded - removed toast
       return;
     }
 
     // Validate email
     if (!validateEmail(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
+      // Invalid email - removed toast
       return;
     }
 
@@ -50,16 +42,9 @@ export const AuthForm = ({}: AuthFormProps) => {
       
       if (error) throw error;
       
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
-      });
+      // Success - removed toast
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Error - removed toast
     } finally {
       setLoading(false);
     }
@@ -70,21 +55,13 @@ export const AuthForm = ({}: AuthFormProps) => {
     
     // Check rate limit
     if (!authRateLimit.canProceed) {
-      toast({
-        title: "Too many attempts",
-        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
-        variant: "destructive",
-      });
+      // Rate limit exceeded - removed toast
       return;
     }
 
     // Validate email
     if (!validateEmail(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
+      // Invalid email - removed toast
       return;
     }
 
@@ -100,16 +77,9 @@ export const AuthForm = ({}: AuthFormProps) => {
       
       if (error) throw error;
       
-      toast({
-        title: "Magic link sent!",
-        description: "Check your email for the login link.",
-      });
+      // Success - removed toast
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Error - removed toast
     } finally {
       setLoading(false);
     }
@@ -120,21 +90,13 @@ export const AuthForm = ({}: AuthFormProps) => {
     
     // Check rate limit
     if (!authRateLimit.canProceed) {
-      toast({
-        title: "Too many attempts",
-        description: `Please wait ${Math.ceil(authRateLimit.timeUntilReset / 60000)} minutes before trying again.`,
-        variant: "destructive",
-      });
+      // Rate limit exceeded - removed toast
       return;
     }
 
     // Validate email
     if (!validateEmail(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
+      // Invalid email - removed toast
       return;
     }
 
@@ -147,16 +109,9 @@ export const AuthForm = ({}: AuthFormProps) => {
       
       if (error) throw error;
       
-      toast({
-        title: "Password reset email sent!",
-        description: "Check your email for the password reset link.",
-      });
+      // Success - removed toast
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Error - removed toast
     } finally {
       setLoading(false);
     }

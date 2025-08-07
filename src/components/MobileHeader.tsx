@@ -4,7 +4,7 @@ import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { LogOut, Menu, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+// Toast removed
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sheet,
@@ -22,17 +22,14 @@ interface MobileHeaderProps {
 }
 
 export const MobileHeader = ({ user, activeTab, onTabChange }: MobileHeaderProps) => {
-  const { toast } = useToast();
+  // Toast removed
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsMenuOpen(false);
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out.",
-    });
+    // Removed toast notification
   };
 
   const handleTabChange = (tab: string) => {

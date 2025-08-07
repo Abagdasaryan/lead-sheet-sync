@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+// Toast removed
 import { Trash2, Plus, Calculator } from "lucide-react";
 import { Product } from "@/types/products";
 import { validateNumericInput } from "@/lib/validation";
@@ -30,7 +30,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
   const [lineItems, setLineItems] = useState<CalculatorLineItem[]>([]);
   const [adminFee, setAdminFee] = useState<number>(350);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  // Toast removed
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -43,11 +43,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
       if (error) throw error;
       setProducts(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch products",
-        variant: "destructive",
-      });
+      // Error fetching products - removed toast
     } finally {
       setLoading(false);
     }
@@ -99,10 +95,7 @@ export const ParCalculatorModal = ({ isOpen, onClose, userId }: ParCalculatorMod
 
   const clearCalculation = () => {
     setLineItems([]);
-    toast({
-      title: "Cleared",
-      description: "Calculation cleared successfully",
-    });
+    // Cleared - removed toast
   };
 
   const resetModal = () => {
