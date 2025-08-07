@@ -223,7 +223,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
                                 variant="outline"
                                 onClick={() => openLineItemsModal(job)}
                               >
-                                <Settings className="h-4 w-4" />
+                                <Settings className={cn(isMobile ? 'h-3 w-3' : 'h-4 w-4')} />
                               </Button>
                             </div>
                           </div>
