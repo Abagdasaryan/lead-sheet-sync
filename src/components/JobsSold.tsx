@@ -126,7 +126,7 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
       <div className={`${isMobile ? 'px-4' : 'max-w-7xl mx-auto px-6'} space-y-6`}>
         {/* Header Actions */}
         <div className="animate-slide-up">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 p-6 bg-gradient-to-r from-card to-card/50 rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 bg-gradient-to-r from-card to-card/50 rounded-xl sm:rounded-2xl shadow-elegant border border-border/50 backdrop-blur-sm">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                 Jobs Sold
