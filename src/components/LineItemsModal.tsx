@@ -60,7 +60,7 @@ export const LineItemsModal = ({ isOpen, onClose, jobData, userId }: LineItemsMo
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: true });
+        .order('products_sorted', { ascending: true });
 
       if (error) throw error;
       setProducts(data || []);
