@@ -37,12 +37,12 @@ serve(async (req) => {
       );
     }
 
-    const { userEmail, userAlias, requestId } = requestBody;
+    const { userFullName, requestId } = requestBody;
     
-    // Validate userAlias or userEmail is provided
-    if (!userAlias && !userEmail) {
+    // Validate userFullName is provided
+    if (!userFullName) {
       return new Response(
-        JSON.stringify({ error: 'userAlias or userEmail is required' }),
+        JSON.stringify({ error: 'userFullName is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -51,10 +51,9 @@ serve(async (req) => {
     }
 
     // Sanitize inputs
-    const sanitizedUserEmail = userEmail ? String(userEmail).substring(0, 100) : null;
-    const sanitizedUserAlias = userAlias ? String(userAlias).substring(0, 50) : null;
-    console.log('Request details:', { userEmail: sanitizedUserEmail, userAlias: sanitizedUserAlias, requestId });
-    console.log('Fetching leads data for user email:', sanitizedUserEmail, 'alias:', sanitizedUserAlias);
+    const sanitizedUserFullName = userFullName ? String(userFullName).substring(0, 100) : null;
+    console.log('Request details:', { userFullName: sanitizedUserFullName, requestId });
+    console.log('Fetching leads data for user full name:', sanitizedUserFullName);
 
     // Get Google Service Account credentials from environment
     const serviceAccountJson = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -138,12 +137,12 @@ serve(async (req) => {
 
     // Leads Sheet schema
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
-    const slugColumn = 'RepEmail';
+    const slugColumn = 'RepAssigned';
     console.log('Using LEADS schema');
     console.log('Looking for slug column:', slugColumn);
     console.log('Expected data columns:', allowedColumns);
     
-    // Find the RepEmail column for leads
+    // Find the RepAssigned column for leads
     const slugIndex = headers.findIndex(header => {
       const lowerHeader = header.toLowerCase().trim();
       const targetSlug = slugColumn.toLowerCase().replace(/_/g, '');
@@ -171,25 +170,25 @@ serve(async (req) => {
     };
     
     console.log('=== FILTERING DEBUG ===');
-    console.log('userEmail:', sanitizedUserEmail);
-    console.log('userAlias:', sanitizedUserAlias);
-    console.log('Filter value:', sanitizedUserAlias || sanitizedUserEmail);
+    console.log('userFullName:', sanitizedUserFullName);
+    console.log('Filter value:', sanitizedUserFullName);
 
-    // First, let's see all unique values in the RepEmail column for debugging
-    const uniqueRepEmails = [...new Set(rows.map(row => row[slugIndex]).filter(Boolean))];
-    console.log('All unique RepEmail values in sheet:', uniqueRepEmails.slice(0, 20)); // Show first 20
+    // First, let's see all unique values in the RepAssigned column for debugging
+    const uniqueRepAssigned = [...new Set(rows.map(row => row[slugIndex]).filter(Boolean))];
+    console.log('All unique RepAssigned values in sheet:', uniqueRepAssigned.slice(0, 20)); // Show first 20
     
     // Also check for partial matches to see if there are variations
     const potentialMatches = rows.filter((row, index) => {
       const slugValue = row[slugIndex];
       if (!slugValue) return false;
       const slugValueLower = slugValue.toLowerCase().trim();
-      return slugValueLower.includes('ab') || slugValueLower === 'ab';
+      const fullNameLower = sanitizedUserFullName?.toLowerCase().trim() || '';
+      return slugValueLower.includes(fullNameLower.split(' ')[0]) || slugValueLower.includes(fullNameLower.split(' ')[1]);
     });
-    console.log('Potential matches containing "ab":', potentialMatches.length);
+    console.log('Potential matches containing name parts:', potentialMatches.length);
     potentialMatches.slice(0, 10).forEach((row, index) => {
       console.log(`Potential match ${index + 1}:`, {
-        repEmail: row[slugIndex],
+        repAssigned: row[slugIndex],
         date: row[dateColumnIndex],
         client: row[headers.findIndex(h => h.toLowerCase().includes('client'))] || 'N/A',
         rowIndex: rows.indexOf(row) + 1
@@ -200,7 +199,7 @@ serve(async (req) => {
     const filteredRows = rows.filter((row, index) => {
       const slugValue = row[slugIndex];
       const slugValueNormalized = normalizeValue(slugValue);
-      const filterValueNormalized = normalizeValue(sanitizedUserAlias || sanitizedUserEmail);
+      const filterValueNormalized = normalizeValue(sanitizedUserFullName);
       
       // Check slug match
       const isSlugMatch = slugValueNormalized === filterValueNormalized;

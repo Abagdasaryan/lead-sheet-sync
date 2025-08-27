@@ -27,6 +27,7 @@ export interface Profile {
   rep_alias: string | null;
   first_name?: string | null;
   last_name?: string | null;
+  full_name?: string | null;
   created_at: string;
   updated_at: string;
 }

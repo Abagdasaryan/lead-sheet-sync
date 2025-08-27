@@ -117,12 +117,11 @@ export const Leads = ({ user }: DashboardProps) => {
   const fetchSheetData = async () => {
     setLoading(true);
     console.log('Fetching sheet data with profile:', profile);
-    console.log('User alias being sent:', profile?.rep_alias);
+    console.log('User full name being sent:', profile?.full_name);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-sheet-data', {
         body: { 
-          userEmail: user.email,
-          userAlias: profile?.rep_alias
+          userFullName: profile?.full_name
         }
       });
 
@@ -134,7 +133,7 @@ export const Leads = ({ user }: DashboardProps) => {
       if (!isMobile) {
         toast({
           title: "Data loaded",
-          description: `Found ${data.rows?.length || 0} rows${profile?.rep_alias ? ' using alias' : ''}.`,
+          description: `Found ${data.rows?.length || 0} rows for ${profile?.full_name}.`,
         });
       }
     } catch (error: any) {
@@ -275,7 +274,7 @@ export const Leads = ({ user }: DashboardProps) => {
                 <ArrowUpDown className="h-4 w-4 text-primary" />
                 Data Controls
               </CardTitle>
-              <CardDescription className="text-sm">Sort your data (showing last 5 days)</CardDescription>
+              <CardDescription className="text-sm">Sort your data (showing last 14 days)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className={`flex ${isMobile ? 'flex-col' : 'flex-wrap'} items-center gap-3`}>
@@ -314,9 +313,9 @@ export const Leads = ({ user }: DashboardProps) => {
                 Your Sheet Data
               </CardTitle>
               <CardDescription className="text-sm">
-                Data filtered for your email: <span className="font-medium text-foreground">{user.email}</span>
+                Data filtered for: <span className="font-medium text-foreground">{profile?.full_name || user.email}</span>
                 <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                  Last 5 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+                  Last 14 days • Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
                 </span>
               </CardDescription>
             </CardHeader>
@@ -326,7 +325,7 @@ export const Leads = ({ user }: DashboardProps) => {
                   <Database className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-muted-foreground text-lg mb-2">No data found</p>
                   <p className="text-sm text-muted-foreground">
-                    No records found for your email in the last 5 days
+                    No records found for {profile?.full_name || 'your profile'} in the last 14 days
                   </p>
                 </div>
               ) : (
