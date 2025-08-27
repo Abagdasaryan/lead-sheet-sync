@@ -55,15 +55,36 @@ export const Leads = ({ user }: DashboardProps) => {
   const handleSave = async () => {
     if (!editingRowId || !editedRowData) return;
     
+    console.log('=== SAVE DEBUG ===');
+    console.log('Editing row ID:', editingRowId);
+    console.log('Edited row data:', editedRowData);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('update-sheet-data', {
-        body: { 
-          rowData: editedRowData,
-          rowIndex: 0
+      // Find the actual row index in the original sheet data
+      // This is challenging since we don't have the original sheet row numbers
+      // For now, we'll send the row data and let the webhook handle finding it
+      const requestBody = { 
+        rowData: editedRowData,
+        rowIndex: 0, // Webhook will need to find the row by matching data
+        searchCriteria: {
+          date: editedRowData.date,
+          clientName: editedRowData['CLIENT NAME'],
+          appointmentName: editedRowData['AppointmentName']
         }
+      };
+      
+      console.log('Sending update request:', requestBody);
+
+      const { data, error } = await supabase.functions.invoke('update-sheet-data', {
+        body: requestBody
       });
 
-      if (error) throw error;
+      console.log('Update response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
 
       setSheetData(prev => prev.map(row => {
         const rowId = `${row.date}-${row['CLIENT NAME']}`;

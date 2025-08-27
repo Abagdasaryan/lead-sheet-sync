@@ -13,8 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const { rowData, rowIndex } = await req.json();
-    console.log('Received update request:', { rowData, rowIndex });
+    const { rowData, rowIndex, searchCriteria } = await req.json();
+    console.log('=== UPDATE SHEET DATA DEBUG ===');
+    console.log('Received update request:', { rowData, rowIndex, searchCriteria });
+    console.log('Row data details:', JSON.stringify(rowData, null, 2));
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -23,6 +25,7 @@ serve(async (req) => {
     );
 
     // Get webhook URL from database
+    console.log('Fetching webhook configuration...');
     const { data: webhookConfig, error: webhookError } = await supabase
       .from('webhook_configs')
       .select('url')
@@ -45,18 +48,19 @@ serve(async (req) => {
     }
     
     const webhookUrl = webhookConfig.url;
-    console.log('Using webhook URL from database');
+    console.log('Using webhook URL:', webhookUrl);
 
     // Prepare the payload for n8n webhook
     const webhookPayload = {
       rowData,
       rowIndex,
-      sheetRowNumber: rowIndex + 2, // Google Sheets row number
+      searchCriteria,
+      sheetRowNumber: rowIndex + 2, // Google Sheets row number (header + 1-indexed)
       timestamp: new Date().toISOString(),
       source: 'lovable-dashboard'
     };
 
-    console.log('Sending to n8n webhook:', webhookPayload);
+    console.log('Sending to n8n webhook:', JSON.stringify(webhookPayload, null, 2));
     
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
@@ -67,16 +71,36 @@ serve(async (req) => {
     });
 
     console.log('Webhook response status:', webhookResponse.status);
+    console.log('Webhook response headers:', Object.fromEntries(webhookResponse.headers.entries()));
     
     const responseText = await webhookResponse.text();
     console.log('Webhook response body:', responseText);
 
-    // Always return success to the frontend since we've sent the webhook
+    if (!webhookResponse.ok) {
+      console.error('Webhook failed with status:', webhookResponse.status);
+      console.error('Webhook error response:', responseText);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Webhook failed',
+          webhookStatus: webhookResponse.status,
+          webhookError: responseText
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+
+    // Return success
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Data sent to n8n webhook',
-        webhookStatus: webhookResponse.status
+        message: 'Data successfully sent to webhook',
+        webhookStatus: webhookResponse.status,
+        webhookResponse: responseText
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
