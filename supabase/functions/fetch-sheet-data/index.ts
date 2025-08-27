@@ -134,6 +134,21 @@ serve(async (req) => {
     
     console.log('Headers found:', headers);
     console.log('Total rows to process:', rows.length);
+    
+    // DEBUG: Log all headers to see what columns exist
+    console.log('=== ALL HEADERS DEBUG ===');
+    headers.forEach((header, index) => {
+      console.log(`Column ${index}: "${header}"`);
+    });
+    
+    // DEBUG: Check if RepAssigned column exists
+    const repAssignedIndex = headers.findIndex(h => h.toLowerCase().includes('assigned') || h.toLowerCase().includes('rep'));
+    console.log('RepAssigned-like columns found at indices:', 
+      headers.map((h, i) => ({ index: i, header: h })).filter(item => 
+        item.header.toLowerCase().includes('assigned') || 
+        item.header.toLowerCase().includes('rep')
+      )
+    );
 
     // Leads Sheet schema
     const allowedColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
@@ -153,6 +168,15 @@ serve(async (req) => {
     
     if (slugIndex === -1) {
       console.log(`${slugColumn} column not found in headers:`, headers);
+      console.log('=== COLUMN SEARCH DEBUG ===');
+      console.log('Looking for column containing:', slugColumn.toLowerCase());
+      headers.forEach((header, index) => {
+        const lowerHeader = header.toLowerCase().trim();
+        const targetSlug = slugColumn.toLowerCase().replace(/_/g, '');
+        console.log(`Header "${header}" (index ${index}): normalized="${lowerHeader}", target="${targetSlug}"`);
+        console.log(`  - includes target: ${lowerHeader.includes(targetSlug)}`);
+        console.log(`  - replace spaces/underscores: ${lowerHeader.replace(/[_\s]/g, '')} === ${targetSlug} : ${lowerHeader.replace(/[_\s]/g, '') === targetSlug}`);
+      });
       throw new Error(`${slugColumn} column not found in the sheet`);
     }
     
@@ -176,6 +200,10 @@ serve(async (req) => {
     // First, let's see all unique values in the RepAssigned column for debugging
     const uniqueRepAssigned = [...new Set(rows.map(row => row[slugIndex]).filter(Boolean))];
     console.log('All unique RepAssigned values in sheet:', uniqueRepAssigned.slice(0, 20)); // Show first 20
+    console.log('=== EXACT VALUES DEBUG ===');
+    uniqueRepAssigned.slice(0, 10).forEach((value, index) => {
+      console.log(`Value ${index + 1}: "${value}" (length: ${value?.length})`);
+    });
     
     // Also check for partial matches to see if there are variations
     const potentialMatches = rows.filter((row, index) => {
