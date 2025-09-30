@@ -88,6 +88,13 @@ export const JobsSold = ({ user }: JobsSoldProps) => {
         webhookSentAt: job.webhook_sent_at
       }));
       
+      // Sort by job number descending
+      transformedJobs.sort((a, b) => {
+        const numA = parseInt(a.job_number?.replace(/\D/g, '') || '0');
+        const numB = parseInt(b.job_number?.replace(/\D/g, '') || '0');
+        return numB - numA;
+      });
+      
       setJobs(transformedJobs);
       console.info(`Jobs loaded: ${transformedJobs.length}`);
     } catch (error: any) {
