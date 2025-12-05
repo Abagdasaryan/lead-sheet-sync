@@ -5,6 +5,9 @@ export interface LeadRow {
   Status: 'New' | 'In Progress' | 'Sold' | 'Lost' | string;
   'Lost Reason'?: string;
   'Last Price'?: string;
+  GutterDowns_Footage?: string;
+  Guard_Footage?: string;
+  Par_Price?: string;
   [key: string]: string | undefined;
 }
 

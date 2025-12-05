@@ -35,8 +35,8 @@ export const Leads = ({ user }: DashboardProps) => {
   const { handleError, handleSuccess, handleInfo } = useErrorHandler();
   const isMobile = useIsMobile();
 
-  const editableColumns = ['Status', 'Lost Reason', 'Last Price'];
-  const allColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price'];
+  const editableColumns = ['Status', 'Lost Reason', 'Last Price', 'GutterDowns_Footage', 'Guard_Footage', 'Par_Price'];
+  const allColumns = ['date', 'CLIENT NAME', 'AppointmentName', 'Status', 'Lost Reason', 'Last Price', 'GutterDowns_Footage', 'Guard_Footage', 'Par_Price'];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -407,6 +407,47 @@ export const Leads = ({ user }: DashboardProps) => {
                                       min="0"
                                     />
                                   </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="gutter-downs" className="text-xs">Gutter Downs Footage</Label>
+                                    <Input
+                                      type="number"
+                                      value={editedRowData?.GutterDowns_Footage || ''}
+                                      onChange={(e) => handleCellChange('GutterDowns_Footage', e.target.value)}
+                                      className="w-full"
+                                      placeholder="Enter footage"
+                                      min="0"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="guard-footage" className="text-xs">Guard Footage</Label>
+                                    <Input
+                                      type="number"
+                                      value={editedRowData?.Guard_Footage || ''}
+                                      onChange={(e) => handleCellChange('Guard_Footage', e.target.value)}
+                                      className="w-full"
+                                      placeholder="Enter footage"
+                                      min="0"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label htmlFor="par-price" className="text-xs">Par Price</Label>
+                                    <Input
+                                      type="number"
+                                      value={editedRowData?.Par_Price?.toString().replace(/[$,]/g, '') || ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                        handleCellChange('Par_Price', formattedValue);
+                                      }}
+                                      className="w-full"
+                                      placeholder="Enter price"
+                                      step="0.01"
+                                      min="0"
+                                    />
+                                  </div>
                                 </div>
                                 
                                 <div className="flex gap-2">
@@ -500,28 +541,37 @@ export const Leads = ({ user }: DashboardProps) => {
                                                    <SelectItem value="Closed - Lost">Closed - Lost</SelectItem>
                                                  </SelectContent>
                                                </Select>
-                                             ) : column === 'Last Price' ? (
-                                               <Input
-                                                 type="number"
-                                                 value={cellValue.toString().replace(/[$,]/g, '')}
-                                                 onChange={(e) => {
-                                                   const value = e.target.value;
-                                                   const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
-                                                   handleCellChange(column, formattedValue);
-                                                 }}
-                                                 className="w-full"
-                                                 placeholder="Enter amount"
-                                                 step="0.01"
-                                                 min="0"
-                                               />
-                                             ) : (
-                                               <Input
-                                                 value={cellValue}
-                                                 onChange={(e) => handleCellChange(column, e.target.value)}
-                                                 className="w-full"
-                                                 placeholder={`Enter ${column}`}
-                                               />
-                                             )}
+                                              ) : column === 'Last Price' || column === 'Par_Price' ? (
+                                                <Input
+                                                  type="number"
+                                                  value={cellValue.toString().replace(/[$,]/g, '')}
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const formattedValue = value ? `$${parseFloat(value).toLocaleString()}` : '';
+                                                    handleCellChange(column, formattedValue);
+                                                  }}
+                                                  className="w-full"
+                                                  placeholder="Enter amount"
+                                                  step="0.01"
+                                                  min="0"
+                                                />
+                                              ) : column === 'GutterDowns_Footage' || column === 'Guard_Footage' ? (
+                                                <Input
+                                                  type="number"
+                                                  value={cellValue}
+                                                  onChange={(e) => handleCellChange(column, e.target.value)}
+                                                  className="w-full"
+                                                  placeholder="Enter footage"
+                                                  min="0"
+                                                />
+                                              ) : (
+                                                <Input
+                                                  value={cellValue}
+                                                  onChange={(e) => handleCellChange(column, e.target.value)}
+                                                  className="w-full"
+                                                  placeholder={`Enter ${column}`}
+                                                />
+                                              )}
                                            </div>
                                          ) : (
                                            <span className={cn(
@@ -529,10 +579,10 @@ export const Leads = ({ user }: DashboardProps) => {
                                              column === 'Status' && cellValue && getStatusColor(cellValue),
                                              "block min-h-[32px] flex items-center"
                                            )}>
-                                             {column === 'Last Price' && cellValue ? 
-                                               (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
-                                               : cellValue
-                                             }
+                                              {(column === 'Last Price' || column === 'Par_Price') && cellValue ? 
+                                                (cellValue.toString().startsWith('$') ? cellValue : `$${cellValue}`) 
+                                                : cellValue
+                                              }
                                            </span>
                                          )}
                                        </td>
