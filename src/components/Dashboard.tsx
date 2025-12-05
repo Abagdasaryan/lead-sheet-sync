@@ -482,7 +482,7 @@ export const Leads = ({ user }: DashboardProps) => {
                             secondaryField="AppointmentName"
                             statusField="Status"
                             dateField="date"
-                            additionalFields={['Last Price']}
+                            additionalFields={['Last Price', 'GutterDowns_Footage', 'Guard_Footage', 'Par_Price']}
                           />
                         );
                       })}
