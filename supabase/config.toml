@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.update-sheet-data]
 verify_jwt = true
+
+[functions.test-webhook]
+verify_jwt = false
