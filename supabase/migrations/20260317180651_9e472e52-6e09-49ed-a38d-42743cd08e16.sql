@@ -1,0 +1,1 @@
+UPDATE public.profiles SET first_name = 'Jason', last_name = 'Seller', full_name = 'Jason Seller', rep_alias = 'js' WHERE user_id = 'dc8e2802-8736-43a5-9e14-ebb105431fa1';
